@@ -5,6 +5,7 @@ import (
     "fmt"
     "strconv"
     "os/exec"
+    "net/http"
     "github.com/gen2brain/beeep"
 )
 
@@ -39,7 +40,6 @@ func automaticGitSync(syncInterval time.Duration, waitCheckInterval time.Duratio
             nextSyncTime = time.Now().Add(syncInterval)
         }
     }()
-
     // This syncs on user input
     for {
         var input string
@@ -75,6 +75,14 @@ func runGitSyncCommands() {
     err = cmd.Run()
     if err != nil {
         panic(err)
+    }
+
+    githubIsAccessible := isGithubAccessible()
+
+    for !githubIsAccessible {
+        fmt.Println("Couldn't access GitHub... trying again in 2 minutes")
+        time.Sleep(2 * time.Minute)
+        githubIsAccessible = isGithubAccessible()
     }
 
     cmd = exec.Command("git", "push", "-u", "origin")
@@ -134,4 +142,10 @@ func getTimeUntilSync(syncTime time.Time) string {
     }
 
     return output
+}
+
+// Validates that github can be reached
+func isGithubAccessible() bool {
+    _, err := http.Get("https://www.github.com")
+    return err == nil
 }
