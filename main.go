@@ -6,6 +6,6 @@ import (
 
 func main() {
     duration := time.Duration(24 * time.Hour)
-    automaticGitSync(duration)
+    waitTime := time.Duration(5 * time.Second)
+    automaticGitSync(duration, waitTime)
 }
-
