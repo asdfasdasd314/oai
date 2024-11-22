@@ -3,6 +3,7 @@ package main
 import (
     "time"
     "fmt"
+    "strconv"
     "os/exec"
     "github.com/gen2brain/beeep"
 )
@@ -48,8 +49,10 @@ func automaticGitSync(syncInterval time.Duration, waitCheckInterval time.Duratio
                 fmt.Println("Syncing data...")
                 //runGitSyncCommands()
                 fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
-            case "nexttime":
+            case "next-sync-time":
                 fmt.Println(formatTime(nextSyncTime))
+            case "time-until-sync":
+                fmt.Println(getTimeUntilSync(nextSyncTime))
             case "exit":
                 // Wait to receive from the channel
                 // This waits until there's something in the channel, which always before or after the automatic git sync commands are ran
@@ -90,4 +93,45 @@ func notifySuccess() {
 
 func formatTime(time time.Time) string {
     return string(time.Format("Mon Jan 2 2006 15:03:02 MST"))
+}
+
+func getTimeUntilSync(syncTime time.Time) string {
+    differenceInTime := syncTime.Unix() - time.Now().Unix()
+    
+    days := differenceInTime / (60 * 60 * 24)
+    differenceInTime -= (days * 60 * 60 * 24)
+    hours := differenceInTime / (60 * 60)
+    differenceInTime -= (hours * 60 * 60)
+    minutes := differenceInTime / 60
+    differenceInTime -= (minutes * 60)
+    seconds := differenceInTime
+    
+    output := ""
+    if days > 0 {
+        output += strconv.FormatInt(days, 10)
+        output += " days"
+    }
+    if hours > 0 {
+        if len(output) > 0 {
+            output += " "
+        }
+        output += strconv.FormatInt(hours, 10)
+        output += " hours"
+    }
+    if minutes > 0 {
+        if len(output) > 0 {
+            output += " "
+        }
+        output += strconv.FormatInt(minutes, 10)
+        output += " minutes"
+    }
+    if seconds > 0 {
+        if len(output) > 0 {
+            output += " "
+        }
+        output += strconv.FormatInt(seconds, 10)
+        output += " seconds"
+    }
+
+    return output
 }
