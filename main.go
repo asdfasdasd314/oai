@@ -5,7 +5,8 @@ import (
 )
 
 func main() {
-    duration := time.Duration(24 * time.Hour)
+    sync := time.Duration(24 * time.Hour)
     waitTime := time.Duration(5 * time.Second)
-    automaticGitSync(duration, waitTime)
+    retryTime := time.Duration(15 * time.Minute)
+    automaticGitSync(sync, waitTime, retryTime)
 }
