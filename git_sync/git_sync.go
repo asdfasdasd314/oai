@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gen2brain/beeep"
+    "github.com/emirpasic/gods/maps/treemap"
 )
 
 type CreateRecurrentTimeError int
@@ -48,59 +48,71 @@ type RecurrentTime struct {
 	Hours       int
 	Minutes     int
 	Seconds     int
-	DayInterval int
 }
 
-func NewRecurrentTime(timeAsStr string) (*RecurrentTime, error) {
-	splitTime := strings.Split(timeAsStr, ":")
-	if len(splitTime) != 3 {
-		return nil, InputFormat
-	}
-
-	hours, err := strconv.ParseInt(splitTime[0], 10, 32)
-	if err != nil {
-		return nil, ParseHours
-	}
-	minutes, err := strconv.ParseInt(splitTime[1], 10, 32)
-	if err != nil {
-		return nil, ParseMinutes
-	}
-	seconds, err := strconv.ParseInt(splitTime[2], 10, 32)
-	if err != nil {
-		return nil, ParseSeconds
-	}
-
-	if hours > 23 || hours < 0 {
-		return nil, InvalidHours
-	}
-	if minutes > 59 || minutes < 0 {
-		return nil, InvalidMinutes
-	}
-	if seconds > 59 || seconds < 0 {
-		return nil, InvalidSeconds
-	}
-
-	return &RecurrentTime{Hours: int(hours), Minutes: int(minutes), Seconds: int(seconds)}, nil
+func NewRecurrentTime(hours int, minutes int, seconds int) (*RecurrentTime) {
+    return &RecurrentTime{Hours: hours, Minutes: minutes, Seconds: seconds}
 }
 
-func AutomaticGitSync(syncInterval time.Duration, checkTimeAccurateInterval time.Duration, retryGitSyncInterval time.Duration) {
-	// This one automatically syncs on the specified interval
-	canExit := make(chan bool, 1)
+func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInterval time.Duration) {
 	// By default either one can exit
+	canExit := make(chan bool, 1)
 	canExit <- true
 
-	// Initialize the queue (because this is actually just a slice, dequeing is O(n)
-	var recurrentTimesQueue []int64 = []int64{time.Now().Add(syncInterval).Unix()}
+    canAccessQueue := make(chan bool, 1)
+
+    // We use a treeset because it's ordered and has log(n) insertion with unique elements
+    // The keys are unix timestamps so they can be sorted and accessed in order
+
+    int64Comparator := func(a, b interface{}) int {
+		ka := a.(int64)
+		kb := b.(int64)
+		switch {
+		case ka < kb:
+			return -1
+		case ka > kb:
+			return 1
+		default:
+			return 0
+		}
+	}
+
+    queue := treemap.NewWith(int64Comparator)
 
 	go func() {
 		// There could theoretically be an issue in that the user may exit while the sync is happening
 		// We don't want that to happen, so here we can use channels to pass messages about the completion status of each goroutine
 		for {
-			// Here we need to check if we have hit the first time in the queue
-			for time.Now().Unix() <= recurrentTimesQueue[0] {
-				time.Sleep(checkTimeAccurateInterval)
-			}
 
+            // Do nothing until the condition is met to break out of the loop (i.e., there is something in the queue and we have passed the time of that first thing in the queue)
+            for {
+                // We have to wait for something to be in the queue, but also we need to wait until either this loop will run again, or the end of this save-cycle to allow the main goroutine to go again
+                // This means that we have to not send on the channel and make it wait until two points later in this loop
+                <-canAccessQueue
+
+                // The above blocks until something is placed in the queue, and then we can access the queue
+                
+                // Here we need to check if we have hit the first time in the queue
+                queueItr := queue.Iterator()
+                queueItr.First() // Moves to the first element
+
+                firstElement := queueItr.Key()
+                firstTimestamp := firstElement.(int64) // This does panic if the type isn't what it is expected to be, but this is just a big script, so I think panicking here is completely fine
+
+                // We've met the condition
+                if time.Now().Unix() >= firstTimestamp {
+                    break
+                }
+
+                // In this situation we can send back on the channel because we don't care if the user erases this recurrence if we've already determined we're going to wait
+                canAccessQueue <- true
+
+                // Otherwise we sleep
+                time.Sleep(checkTimeAccurateInterval)
+            }
+
+            // Notice that we never sent back on the `emptyQueue` channel, so the main goroutine should be waiting, and we can run all of this code safely
+            
 			// Receive from the channel so the main goroutine must stop
 			<-canExit
 
@@ -113,16 +125,29 @@ func AutomaticGitSync(syncInterval time.Duration, checkTimeAccurateInterval time
 			// Send to the channel so now the main goroutine can exit if it wants to
 			canExit <- true
 
-			// Remember before where we checked if we hit the FIRST time, well there's a chance we've actually hit multiple
-			// This would only happen if the computer were to sleep through a few of these, but anyways we have to clear all of the
-			// times up until the current time
+            // Now we have to adjust the queue
+            // We know we can adjust it because the main goroutine should be blocked
+            for {
+                queueItr := queue.Iterator()
+                queueItr.First() // Move the iterator to the first element
 
-			for time.Now().Unix() >= recurrentTimesQueue[0] {
-				// Pushes back the things one day until the first point in the queue is going to happen after the moment at which this is evaluated
-				newTimestamp := addDayToTime(recurrentTimesQueue[0])
-				recurrentTimesQueue = recurrentTimesQueue[1:]
-				insertIntoQueue(newTimestamp, &recurrentTimesQueue)
-			}
+                firstKey := queueItr.Key()
+                firstTimestamp := firstKey.(int64)
+
+                value := queueItr.Value()
+                dayInterval := value.(int)
+
+                if time.Now().Unix() >= firstTimestamp {
+                    queue.Remove(firstTimestamp)
+                    newTimestamp := addDayToTime(firstTimestamp)
+                    queue.Put(newTimestamp, dayInterval)
+                } else {
+                    break
+                }
+            }
+
+            // At the end we send back on the `emptyQueue` goroutine
+            canAccessQueue <- true
 		}
 	}()
 
@@ -138,68 +163,118 @@ func AutomaticGitSync(syncInterval time.Duration, checkTimeAccurateInterval time
 			// runGitSyncCommands(retryGitSyncInterval)
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
 		case "next-sync-time":
-			fmt.Println(formatTime(time.Unix(recurrentTimesQueue[0], 0)))
+            queueItr := queue.Iterator()
+            ok := queueItr.First() // Move the iterator to the first element
+
+            if ok {
+                firstElement := queueItr.Key()
+                firstTimestamp := firstElement.(int64)
+
+                fmt.Println(formatTime(time.Unix(firstTimestamp, 0)))
+            } else {
+                fmt.Println("No sync times added yet")
+            }
+
 		case "time-until-sync":
-			fmt.Println(getTimeUntilSync(recurrentTimesQueue[0]))
+            queueItr := queue.Iterator()
+            ok := queueItr.First() // Move the iterator to the first element
+
+            if ok {
+                firstElement := queueItr.Key()
+                firstTimestamp := firstElement.(int64)
+
+                fmt.Println(getTimeUntilSync(firstTimestamp))
+            } else {
+                fmt.Println("No sync times added yet")
+            }
+
 		case "list-current-recurrent-times":
-			for _, timestamp := range recurrentTimesQueue {
-				fmt.Println(formatTime(time.Unix(timestamp, 0)))
-			}
+            timestamps := queue.Keys()
+
+            if len(timestamps) == 0 {
+                fmt.Println("No sync times added yet")
+            } else {
+                for _, value := range timestamps {
+                    timestamp := value.(int64)
+                    fmt.Println(formatTime(time.Unix(timestamp, 0)))
+                }
+            }
 
 		// Mutable operations //
 		case "set-sync-time":
 			// Read the hours, minutes, and seconds from the user
-			fmt.Print("Enter the number of hours, minutes and seconds (HH:MM:SS) in military time: ")
-			var recurringTimeString string
-			fmt.Scanln(&recurringTimeString)
+            var hours int
+            for {
+                fmt.Print("Enter the number of hours (0-23): ")
+                _, err := fmt.Scanln(&hours)
+                if err != nil {
+                    fmt.Println("Enter an actual integer")
+                } else if hours < 0 || hours > 23 {
+                    fmt.Println("Enter a number between 0 and 23")
+                } else {
+                    break
+                }
+            }
+            var minutes int
+            for {
+                fmt.Print("Enter the number of minutes (0-59): ")
+                _, err := fmt.Scanln(&minutes)
+                if err != nil {
+                    fmt.Println("Enter an actual integer")
+                } else if minutes < 0 || minutes > 59 {
+                    fmt.Println("Enter a number between 0 and 59")
+                } else {
+                    break
+                }
+            }
+           var seconds int
+            for {
+                fmt.Print("Enter the number of seconds (0-59): ")
+                _, err := fmt.Scanln(&seconds)
+                if err != nil {
+                    fmt.Println("Enter an actual integer")
+                } else if seconds < 0 || seconds > 59 {
+                    fmt.Println("Enter a number between 0 and 59")
+                } else {
+                    break
+                }
+            }
+            
+            // Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
+            now := time.Now()
+            day := now.Day()
+            month := now.Month()
+            year := now.Year()
+            currLocation := now.Location()
+            recurrentDateObj := time.Date(year, month, day, hours, minutes, seconds, 0, currLocation)
+            unixTimestamp := recurrentDateObj.Unix()
+            if now.Unix() > unixTimestamp {
+                unixTimestamp = addDayToTime(unixTimestamp)
+            }
 
-			var errorCreatingTime bool
+            // Get the recurrence interval
+            var dailyInterval int
+            for {
+                fmt.Print("Enter the days between syncs (recurrence interval): ")
+                _, err := fmt.Scanln(&dailyInterval)
+                if err != nil {
+                    fmt.Println("Enter an actual integer")
+                } else if dailyInterval < 0 {
+                    fmt.Println("Enter a number greater than 0")
+                } else {
+                    break
+                }
+            }
 
-			recurrentTime, err := NewRecurrentTime(recurringTimeString)
-			if err != nil {
-				errorCreatingTime = true
-			}
+            queue.Put(unixTimestamp, dailyInterval)
 
-			for errorCreatingTime {
-				fmt.Println(err.Error())
-				fmt.Print("Enter the number of hours, minutes and seconds (HH:MM:SS) in military time: ")
-				fmt.Scanln(&recurringTimeString)
-
-				recurrentTime, err = NewRecurrentTime(recurringTimeString)
-				if err != nil {
-					errorCreatingTime = true
-				} else {
-					errorCreatingTime = false
-				}
-			}
-
-			now := time.Now()
-
-			// Now we have a valid recurrent time object, we have to create the timestamp
-			currYear, currMonth, currDay := now.Date()
-			currLocation := now.Location()
-
-			dateObject := time.Date(currYear, currMonth, currDay, recurrentTime.Hours, recurrentTime.Minutes, recurrentTime.Seconds, 0, currLocation)
-			unixTime := dateObject.Unix()
-
-			// Next we add to the queue
-
-			/* First make sure it's not in the queue, which is an O(n) operation, and we can guarantee that there will be no duplicates because we limited the recurrent times to those between the
-			   current time today and the corresponding time tomorrow */
-
-			found := false
-			for _, timestamp := range recurrentTimesQueue {
-				// If we already have it stored then just don't add it
-				if timestamp == unixTime {
-					fmt.Println("That timestamp is already being used")
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				insertIntoQueue(unixTime, &recurrentTimesQueue)
-			}
+            // At the start of the program there is nothing in the channel, so here we have to determine if we can tell the other goroutine that it can now do it's Syncing
+            if len(canAccessQueue) == 0 {
+                canAccessQueue <- true
+            }
+        
+        case "erase-sync-time":
+            panic("TODO")
 
 		// Exit //
 		case "exit":
