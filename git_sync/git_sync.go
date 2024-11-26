@@ -77,7 +77,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 	}
 
 	// This treemap stores a map of each unix timestamp to the number of days between syncs and the number of syncs that have occured
-    // These entries are int64s to SyncInfo objects
+	// These entries are int64s to SyncInfo objects
 	queue := treemap.NewWith(int64Comparator)
 
 	go func() {
@@ -95,29 +95,31 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
 				// Here we need to check if we have hit the first time in the queue
 				queueItr := queue.Iterator()
-				queueItr.First() // Moves to the first element
+                notEmpty := queueItr.First() // Moves to the first element
 
-				firstElement := queueItr.Key()
-				firstTimestamp := firstElement.(int64) // This does panic if the type isn't what it is expected to be, but this is just a big script, so I think panicking here is completely fine
+                if notEmpty {
+                    firstElement := queueItr.Key()
+                    firstTimestamp := firstElement.(int64) // This does panic if the type isn't what it is expected to be, but this is just a big script, so I think panicking here is completely fine
 
-				// We've met the condition
-				if time.Now().Unix() >= firstTimestamp {
-                    queueItr := queue.Iterator()
-                    queueItr.First() // Move the iterator to the first element
+                    // We've met the condition
+                    if time.Now().Unix() >= firstTimestamp {
+                        queueItr := queue.Iterator()
+                        queueItr.First() // Move the iterator to the first element
 
-                    value := queueItr.Value()
-                    syncInfo := value.(*SyncInfo)
+                        value := queueItr.Value()
+                        syncInfo := value.(*SyncInfo)
 
-                    (*syncInfo).DaysSinceLastSync = ((*syncInfo).DaysSinceLastSync + 1) % (*syncInfo).DaysBetweenSync
+                        (*syncInfo).DaysSinceLastSync = ((*syncInfo).DaysSinceLastSync + 1) % (*syncInfo).DaysBetweenSync
 
-                    // we know we've hit it
-                    if (*syncInfo).DaysSinceLastSync == 0 {
-                        break;
+                        // we know we've hit it
+                        if (*syncInfo).DaysSinceLastSync == 0 {
+                            break
+                        }
                     }
-				}
+                }
 
-				// In this situation we can send back on the channel because we don't care if the user erases this recurrence if we've already determined we're going to wait
-				canAccessQueue <- true
+                // In this situation we can send back on the channel because we don't care if the user erases this recurrence if we've already determined we're going to wait
+                canAccessQueue <- true
 
 				// Otherwise we sleep
 				time.Sleep(checkTimeAccurateInterval)
@@ -169,33 +171,64 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 		fmt.Scanln(&input)
 
 		switch input {
-		// Immutable operatons //
+		case "help":
+            fmt.Println("Meta Commands")
+            fmt.Println("   help: Lists commands that do stuff")
+            fmt.Println("   exit: Exits the program safely without potentially being in the middle of a syncing command")
+            fmt.Println()
+			
+            fmt.Println("Syncing")
+			fmt.Println("   sync: Syncs with GitHub")
+            fmt.Println("   skip-sync: Skips the next sync that would happen")
+            fmt.Println()
+
+			fmt.Println("Querying Data")
+			fmt.Println("   next-sync-time: Gets the next time GitHub will automatically sync")
+			fmt.Println("   time-until-sync: Calculates the time until the next sync in days, hours, minutes, and seconds")
+			fmt.Println("   list-recurrent-times: Lists all the recurrent times GitHub is synced")
+            fmt.Println()
+
+			fmt.Println("Mutating Internal Data")
+            fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
+            fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
+            fmt.Println()
+		case "exit":
+			// Wait to receive from the channel
+			// This waits until there's something in the channel, which always before or after the automatic git sync commands are ran
+			<-canExit
+			return
+
+		// Sync //
 		case "sync":
 			fmt.Println("Syncing data...")
 			// runGitSyncCommands(retryGitSyncInterval)
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
+        case "skip-sync":
+            panic("TODO")
+
+		// Immutable operatons //
 		case "next-sync-time":
 			queueItr := queue.Iterator()
 			ok := queueItr.First() // Move the iterator to the first element
 
 			if ok {
-                // So what we have to do is an O(n) searc for the minimum
-                // This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
-                var closestSyncTime int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
-                
-                temp := calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
-                if temp < closestSyncTime {
-                    closestSyncTime = temp
-                }
+				// So what we have to do is an O(n) searc for the minimum
+				// This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
+				var closestSyncTime int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
 
-                for queueItr.Next() {
-                    temp = calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
-                    if temp < closestSyncTime {
-                        closestSyncTime = temp
-                    }
-                }
+				temp := calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
+				if temp < closestSyncTime {
+					closestSyncTime = temp
+				}
 
-                fmt.Println(formatTime(time.Unix(closestSyncTime, 0)))
+				for queueItr.Next() {
+					temp = calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
+					if temp < closestSyncTime {
+						closestSyncTime = temp
+					}
+				}
+
+				fmt.Println(formatTime(time.Unix(closestSyncTime, 0)))
 			} else {
 				fmt.Println("No sync times added yet")
 			}
@@ -205,94 +238,46 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 			ok := queueItr.First() // Move the iterator to the first element
 
 			if ok {
-                // So what we have to do is an O(n) searc for the minimum
-                // This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
-                var closestSyncTime int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
-                
-                temp := calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
-                if temp < closestSyncTime {
-                    closestSyncTime = temp
-                }
+				// So what we have to do is an O(n) searc for the minimum
+				// This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
+				var closestSyncTime int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
 
-                for queueItr.Next() {
-                    temp = calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
-                    if temp < closestSyncTime {
-                        closestSyncTime = temp
-                    }
-                }
+				temp := calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
+				if temp < closestSyncTime {
+					closestSyncTime = temp
+				}
 
-                fmt.Println(getTimeUntilSync(closestSyncTime))
+				for queueItr.Next() {
+					temp = calculateSyncTimestamp(queueItr.Key().(int64), queueItr.Value().(*SyncInfo))
+					if temp < closestSyncTime {
+						closestSyncTime = temp
+					}
+				}
+
+				fmt.Println(getTimeUntilSync(closestSyncTime))
 			} else {
 				fmt.Println("No sync times added yet")
 			}
 
-		case "list-current-recurrent-times":
+		case "list-recurrent-times":
 			timestamps := queue.Keys()
-            syncInfos := queue.Values()
+			syncInfos := queue.Values()
 
 			if len(timestamps) == 0 {
 				fmt.Println("No sync times added yet")
 			} else {
-				for index, _ := range timestamps {
-                    timestamp := timestamps[index].(int64)
-                    syncInfo := syncInfos[index].(*SyncInfo)
+				for index := range timestamps {
+					timestamp := timestamps[index].(int64)
+					syncInfo := syncInfos[index].(*SyncInfo)
 
-                    formattedTime := formatTime(time.Unix(calculateSyncTimestamp(timestamp, syncInfo), 0))
-                    fmt.Println(formattedTime + " | Days Between Syncs: " + strconv.FormatInt(int64((*syncInfo).DaysBetweenSync), 10) + " | Days Since Last Sync: " + strconv.FormatInt(int64((*syncInfo).DaysSinceLastSync), 10))
+					formattedTime := formatTime(time.Unix(calculateSyncTimestamp(timestamp, syncInfo), 0))
+					fmt.Println(formattedTime + " | Days Between Syncs: " + strconv.FormatInt(int64((*syncInfo).DaysBetweenSync), 10) + " | Days Since Last Sync: " + strconv.FormatInt(int64((*syncInfo).DaysSinceLastSync), 10))
 				}
 			}
 
 		// Mutable operations //
 		case "set-sync-time":
-			// Read the hours, minutes, and seconds from the user
-			var hours int
-			for {
-				fmt.Print("Enter the number of hours (0-23): ")
-				_, err := fmt.Scanln(&hours)
-				if err != nil {
-					fmt.Println("Enter an actual integer")
-				} else if hours < 0 || hours > 23 {
-					fmt.Println("Enter a number between 0 and 23")
-				} else {
-					break
-				}
-			}
-			var minutes int
-			for {
-				fmt.Print("Enter the number of minutes (0-59): ")
-				_, err := fmt.Scanln(&minutes)
-				if err != nil {
-					fmt.Println("Enter an actual integer")
-				} else if minutes < 0 || minutes > 59 {
-					fmt.Println("Enter a number between 0 and 59")
-				} else {
-					break
-				}
-			}
-			var seconds int
-			for {
-				fmt.Print("Enter the number of seconds (0-59): ")
-				_, err := fmt.Scanln(&seconds)
-				if err != nil {
-					fmt.Println("Enter an actual integer")
-				} else if seconds < 0 || seconds > 59 {
-					fmt.Println("Enter a number between 0 and 59")
-				} else {
-					break
-				}
-			}
-
-			// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
-			now := time.Now()
-			day := now.Day()
-			month := now.Month()
-			year := now.Year()
-			currLocation := now.Location()
-			recurrentDateObj := time.Date(year, month, day, hours, minutes, seconds, 0, currLocation)
-			unixTimestamp := recurrentDateObj.Unix()
-			if now.Unix() > unixTimestamp {
-				unixTimestamp = addDayToTime(unixTimestamp)
-			}
+            unixTimestamp := getUnixTimeFromUser()
 
 			// Get the recurrence interval
 			var dayInterval int
@@ -308,7 +293,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 				}
 			}
 
-            syncInfo := NewSyncInfo(dayInterval, 0)
+			syncInfo := NewSyncInfo(dayInterval, 0)
 			queue.Put(unixTimestamp, syncInfo)
 
 			// At the start of the program there is nothing in the channel, so here we have to determine if we can tell the other goroutine that it can now do it's Syncing
@@ -316,16 +301,27 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 				canAccessQueue <- true
 			}
 
-		case "erase-sync-time":
-			panic("TODO")
+		case "erase-time":
+            // The automatic syncing is in another goroutine, and so we need to check that it's safe
+            // Recieve on channel so we wait until we know it's safe to erase the time
+            <-canAccessQueue
 
-		// Exit //
-		case "exit":
-			// Wait to receive from the channel
-			// This waits until there's something in the channel, which always before or after the automatic git sync commands are ran
-			<-canExit
-			return
-		}
+            // Get the time the user wants to remove
+            timestamp := getUnixTimeFromUser()
+
+            _, found := queue.Get(timestamp)
+
+            if !found {
+                fmt.Println("That time is not in use, cannot remomve it")
+            } else {
+                // Remove that thang
+                queue.Remove(timestamp)
+                fmt.Println("Successfully removed time")
+            }
+
+            // At the end we can send back on the channel so the separate go routine can do it's thing
+            canAccessQueue <- true
+        }
 	}
 }
 
@@ -493,6 +489,70 @@ func insertIntoQueue(newTimestamp int64, timestampsQueue *[]int64) {
 }
 
 func calculateSyncTimestamp(timestamp int64, syncInfo *SyncInfo) int64 {
-    differenceInDays := (*syncInfo).DaysBetweenSync - (*syncInfo).DaysSinceLastSync - 1 // Because otherwise if the two were 10 seconds apart, this would still say they were a day apart. They are a day and some change apart
-    return int64(differenceInDays * 24 * 60 * 60) + timestamp
+	differenceInDays := (*syncInfo).DaysBetweenSync - (*syncInfo).DaysSinceLastSync - 1 // Because otherwise if the two were 10 seconds apart, this would still say they were a day apart. They are a day and some change apart
+	return int64(differenceInDays*24*60*60) + timestamp
+}
+
+func getUnixTimeFromUser() int64 {
+	// Read the hours, minutes, and seconds from the user
+    var actualHours int
+    for {
+        fmt.Print("Enter the number of hours (0-23): ")
+        var inputStr string
+        fmt.Scanln(&inputStr)
+        hours, err := strconv.ParseInt(inputStr, 10, 0)
+        if err != nil {
+            fmt.Println("Enter an actual integer")
+        } else if hours < 0 || hours > 23 {
+            fmt.Println("Enter a number between 0 and 23")
+        } else {
+            actualHours = int(hours)
+            break
+        }
+    }
+    var actualMinutes int
+    for {
+        fmt.Print("Enter the number of minutes (0-59): ")
+        var inputStr string
+        fmt.Scanln(&inputStr)
+        minutes, err := strconv.ParseInt(inputStr, 10, 0)
+        if err != nil {
+            fmt.Println("Enter an actual integer")
+        } else if minutes < 0 || minutes > 59 {
+            fmt.Println("Enter a number between 0 and 59")
+        } else {
+            actualMinutes = int(minutes)
+            break
+        }
+    }
+    var actualSeconds int
+    for {
+        fmt.Print("Enter the number of seconds (0-59): ")
+        var inputStr string
+        fmt.Scanln(&inputStr)
+        seconds, err := strconv.ParseInt(inputStr, 10, 0)
+        if err != nil {
+            fmt.Println("Enter an actual integer")
+        } else if seconds < 0 || seconds > 59 {
+            fmt.Println("Enter a number between 0 and 59")
+        } else {
+            actualSeconds = int(seconds)
+            break
+        }
+    }
+
+
+    // Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
+    now := time.Now()
+    day := now.Day()
+    month := now.Month()
+    year := now.Year()
+    currLocation := now.Location()
+    recurrentDateObj := time.Date(year, month, day, actualHours, actualMinutes, actualSeconds, 0, currLocation)
+    unixTimestamp := recurrentDateObj.Unix()
+    if now.Unix() > unixTimestamp {
+        unixTimestamp = addDayToTime(unixTimestamp)
+    }
+
+    return unixTimestamp
 }
