@@ -11,18 +11,6 @@ import (
 	"github.com/gen2brain/beeep"
 )
 
-type CreateRecurrentTimeError int
-
-const (
-	InputFormat CreateRecurrentTimeError = iota // this starts at 0
-	ParseHours
-	ParseMinutes
-	ParseSeconds
-	InvalidHours
-	InvalidMinutes
-	InvalidSeconds
-)
-
 type SyncInfo struct {
 	DaysBetweenSync   int
 	DaysSinceLastSync int
@@ -30,27 +18,6 @@ type SyncInfo struct {
 
 func NewSyncInfo(daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
 	return &SyncInfo{DaysBetweenSync: daysBetweenSync, DaysSinceLastSync: daysSinceLastSync}
-}
-
-func (e CreateRecurrentTimeError) Error() string {
-	switch e {
-	case InputFormat:
-		return "Invalid recurrent time format"
-	case ParseHours:
-		return "Could not parse hours string"
-	case ParseMinutes:
-		return "Could not parse minutes string"
-	case ParseSeconds:
-		return "Could not parse seconds string"
-	case InvalidHours:
-		return "Hours was not between 0 and 23"
-	case InvalidMinutes:
-		return "Minutes was not between 0 and 59"
-	case InvalidSeconds:
-		return "Seconds was not between 0 and 59"
-	default:
-		return "This error wasn't handled properly in CreateRecurrentTimeError"
-	}
 }
 
 func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInterval time.Duration) {
@@ -192,6 +159,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
             fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
             fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
             fmt.Println()
+
 		case "exit":
 			// Wait to receive from the channel
 			// This waits until there's something in the channel, which always before or after the automatic git sync commands are ran
@@ -203,6 +171,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 			fmt.Println("Syncing data...")
 			// runGitSyncCommands(retryGitSyncInterval)
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
+
         case "skip-sync":
             panic("TODO")
 
