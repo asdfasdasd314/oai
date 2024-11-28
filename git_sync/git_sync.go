@@ -182,7 +182,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 			runGitSyncCommands(retryGitSyncInterval)
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
 
-		case "skip-next-sync":
+		case "skip-sync":
             if queue.Size() == 0 {
                 fmt.Println("No times currently queued up to sync");
             } else {
@@ -191,7 +191,6 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
                 ok := queueItr.First() // Move to the first element
                 if !ok {
                     fmt.Println("Failed to get the first time in the queue")
-                    continue
                 } else {
                     value := queueItr.Value()
                     syncInfo := value.(*SyncInfo)
