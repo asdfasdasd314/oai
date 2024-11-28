@@ -211,14 +211,13 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
                     if foundTimeToSkip {
                         (*syncInfo).SkipOccurence = true
+                        key := queueItr.Key()
+                        timestamp := key.(int64)
+
+                        formattedSyncTime := formatTime(time.Unix(timestamp, 0))
+
+                        fmt.Println("Will skip the sync at " + formattedSyncTime)
                     }
-
-                    key := queueItr.Key()
-                    timestamp := key.(int64)
-
-                    formattedSyncTime := formatTime(time.Unix(timestamp, 0))
-
-                    fmt.Println("Will skip the sync at " + formattedSyncTime)
                 }
             }
 
