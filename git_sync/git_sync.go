@@ -14,10 +14,11 @@ import (
 type SyncInfo struct {
 	DaysBetweenSync   int
 	DaysSinceLastSync int
+    SkipOccurence bool
 }
 
 func NewSyncInfo(daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
-	return &SyncInfo{DaysBetweenSync: daysBetweenSync, DaysSinceLastSync: daysSinceLastSync}
+	return &SyncInfo{DaysBetweenSync: daysBetweenSync, DaysSinceLastSync: daysSinceLastSync, SkipOccurence: false}
 }
 
 func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInterval time.Duration) {
@@ -62,31 +63,40 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
 				// Here we need to check if we have hit the first time in the queue
 				queueItr := queue.Iterator()
-                notEmpty := queueItr.First() // Moves to the first element
+				notEmpty := queueItr.First() // Moves to the first element
 
-                if notEmpty {
-                    firstElement := queueItr.Key()
-                    firstTimestamp := firstElement.(int64) // This does panic if the type isn't what it is expected to be, but this is just a big script, so I think panicking here is completely fine
+				if notEmpty {
+					firstElement := queueItr.Key()
+					firstTimestamp := firstElement.(int64) // This does panic if the type isn't what it is expected to be, but this is just a big script, so I think panicking here is completely fine
 
-                    // We've met the condition
-                    if time.Now().Unix() >= firstTimestamp {
-                        queueItr := queue.Iterator()
+					// We've met the condition
+					if time.Now().Unix() >= firstTimestamp {
+						queueItr := queue.Iterator()
+	
                         queueItr.First() // Move the iterator to the first element
+						value := queueItr.Value()
+						syncInfo := value.(*SyncInfo)
 
-                        value := queueItr.Value()
-                        syncInfo := value.(*SyncInfo)
+						(*syncInfo).DaysSinceLastSync = ((*syncInfo).DaysSinceLastSync + 1) % (*syncInfo).DaysBetweenSync
+                        
+						// we know we've hit it
+						if (*syncInfo).DaysSinceLastSync == 0 {
+                            if (*syncInfo).SkipOccurence == true {
+                                (*syncInfo).SkipOccurence = false
+                            } else {
+							    break
+                            }
+						} else {
+                            // Otherwise we need to bump up the timestamp
+                            queue.Remove(firstTimestamp)
+                            newTimestamp := addDayToTime(firstTimestamp)
+                            queue.Put(newTimestamp, syncInfo)
+						}
+					}
+				}
 
-                        (*syncInfo).DaysSinceLastSync = ((*syncInfo).DaysSinceLastSync + 1) % (*syncInfo).DaysBetweenSync
-
-                        // we know we've hit it
-                        if (*syncInfo).DaysSinceLastSync == 0 {
-                            break
-                        }
-                    }
-                }
-
-                // In this situation we can send back on the channel because we don't care if the user erases this recurrence if we've already determined we're going to wait
-                canAccessQueue <- true
+				// In this situation we can send back on the channel because we don't care if the user erases this recurrence if we've already determined we're going to wait
+				canAccessQueue <- true
 
 				// Otherwise we sleep
 				time.Sleep(checkTimeAccurateInterval)
@@ -99,7 +109,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
 			// If we've gotten to this point we need to guarantee that we can run the git commands
 			fmt.Println("Syncing data automatically...")
-			// runGitSyncCommands(retryGitSyncInterval)
+			runGitSyncCommands(retryGitSyncInterval)
 			notifySuccess()
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
 
@@ -139,26 +149,26 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
 		switch input {
 		case "help":
-            fmt.Println("Meta Commands")
-            fmt.Println("   help: Lists commands that do stuff")
-            fmt.Println("   exit: Exits the program safely without potentially being in the middle of a syncing command")
-            fmt.Println()
-			
-            fmt.Println("Syncing")
+			fmt.Println("Meta Commands")
+			fmt.Println("   help: Lists commands that do stuff")
+			fmt.Println("   exit: Exits the program safely without potentially being in the middle of a syncing command")
+			fmt.Println()
+
+			fmt.Println("Syncing")
 			fmt.Println("   sync: Syncs with GitHub")
-            fmt.Println("   skip-sync: Skips the next sync that would happen")
-            fmt.Println()
+			fmt.Println("   skip-sync: Skips the next sync that would happen")
+			fmt.Println()
 
 			fmt.Println("Querying Data")
 			fmt.Println("   next-sync-time: Gets the next time GitHub will automatically sync")
 			fmt.Println("   time-until-sync: Calculates the time until the next sync in days, hours, minutes, and seconds")
 			fmt.Println("   list-recurrent-times: Lists all the recurrent times GitHub is synced")
-            fmt.Println()
+			fmt.Println()
 
 			fmt.Println("Mutating Internal Data")
-            fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
-            fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
-            fmt.Println()
+			fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
+			fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
+			fmt.Println()
 
 		case "exit":
 			// Wait to receive from the channel
@@ -169,11 +179,49 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 		// Sync //
 		case "sync":
 			fmt.Println("Syncing data...")
-			// runGitSyncCommands(retryGitSyncInterval)
+			runGitSyncCommands(retryGitSyncInterval)
 			fmt.Println("Successfully synced data! | " + formatTime(time.Now()))
 
-        case "skip-sync":
-            panic("TODO")
+		case "skip-next-sync":
+            if queue.Size() == 0 {
+                fmt.Println("No times currently queued up to sync");
+            } else {
+                // We skip the next time
+                queueItr := queue.Iterator()
+                ok := queueItr.First() // Move to the first element
+                if !ok {
+                    fmt.Println("Failed to get the first time in the queue")
+                    continue
+                } else {
+                    value := queueItr.Value()
+                    syncInfo := value.(*SyncInfo)
+                    
+                    // Go until we find a time we aren't skipping
+                    foundTimeToSkip := false
+                    for (*syncInfo).SkipOccurence == true {
+                        ok = queueItr.Next()
+                        // If this branch is entered then we must have hit the last time
+                        if !ok {
+                            fmt.Println("Every time is being skipped")
+                        } else {
+                            value = queueItr.Value()
+                            syncInfo = value.(*SyncInfo)
+                            foundTimeToSkip = true
+                        }
+                    }
+
+                    if foundTimeToSkip {
+                        (*syncInfo).SkipOccurence = true
+                    }
+
+                    key := queueItr.Key()
+                    timestamp := key.(int64)
+
+                    formattedSyncTime := formatTime(time.Unix(timestamp, 0))
+
+                    fmt.Println("Will skip the sync at " + formattedSyncTime)
+                }
+            }
 
 		// Immutable operatons //
 		case "next-sync-time":
@@ -246,7 +294,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 
 		// Mutable operations //
 		case "set-sync-time":
-            unixTimestamp := getUnixTimeFromUser()
+			unixTimestamp := getUnixTimeFromUser()
 
 			// Get the recurrence interval
 			var dayInterval int
@@ -255,7 +303,7 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 				_, err := fmt.Scanln(&dayInterval)
 				if err != nil {
 					fmt.Println("Enter an actual integer")
-				} else if dayInterval < 0 {
+				} else if dayInterval <= 0 {
 					fmt.Println("Enter a number greater than 0")
 				} else {
 					break
@@ -271,26 +319,26 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
 			}
 
 		case "erase-time":
-            // The automatic syncing is in another goroutine, and so we need to check that it's safe
-            // Recieve on channel so we wait until we know it's safe to erase the time
-            <-canAccessQueue
+			// The automatic syncing is in another goroutine, and so we need to check that it's safe
+			// Recieve on channel so we wait until we know it's safe to erase the time
+			<-canAccessQueue
 
-            // Get the time the user wants to remove
-            timestamp := getUnixTimeFromUser()
+			// Get the time the user wants to remove
+			timestamp := getUnixTimeFromUser()
 
-            _, found := queue.Get(timestamp)
+			_, found := queue.Get(timestamp)
 
-            if !found {
-                fmt.Println("That time is not in use, cannot remomve it")
-            } else {
-                // Remove that thang
-                queue.Remove(timestamp)
-                fmt.Println("Successfully removed time")
-            }
+			if !found {
+				fmt.Println("That time is not in use, cannot remomve it")
+			} else {
+				// Remove that thang
+				queue.Remove(timestamp)
+				fmt.Println("Successfully removed time")
+			}
 
-            // At the end we can send back on the channel so the separate go routine can do it's thing
-            canAccessQueue <- true
-        }
+			// At the end we can send back on the channel so the separate go routine can do it's thing
+			canAccessQueue <- true
+		}
 	}
 }
 
@@ -464,64 +512,63 @@ func calculateSyncTimestamp(timestamp int64, syncInfo *SyncInfo) int64 {
 
 func getUnixTimeFromUser() int64 {
 	// Read the hours, minutes, and seconds from the user
-    var actualHours int
-    for {
-        fmt.Print("Enter the number of hours (0-23): ")
-        var inputStr string
-        fmt.Scanln(&inputStr)
-        hours, err := strconv.ParseInt(inputStr, 10, 0)
-        if err != nil {
-            fmt.Println("Enter an actual integer")
-        } else if hours < 0 || hours > 23 {
-            fmt.Println("Enter a number between 0 and 23")
-        } else {
-            actualHours = int(hours)
-            break
-        }
-    }
-    var actualMinutes int
-    for {
-        fmt.Print("Enter the number of minutes (0-59): ")
-        var inputStr string
-        fmt.Scanln(&inputStr)
-        minutes, err := strconv.ParseInt(inputStr, 10, 0)
-        if err != nil {
-            fmt.Println("Enter an actual integer")
-        } else if minutes < 0 || minutes > 59 {
-            fmt.Println("Enter a number between 0 and 59")
-        } else {
-            actualMinutes = int(minutes)
-            break
-        }
-    }
-    var actualSeconds int
-    for {
-        fmt.Print("Enter the number of seconds (0-59): ")
-        var inputStr string
-        fmt.Scanln(&inputStr)
-        seconds, err := strconv.ParseInt(inputStr, 10, 0)
-        if err != nil {
-            fmt.Println("Enter an actual integer")
-        } else if seconds < 0 || seconds > 59 {
-            fmt.Println("Enter a number between 0 and 59")
-        } else {
-            actualSeconds = int(seconds)
-            break
-        }
-    }
+	var actualHours int
+	for {
+		fmt.Print("Enter the number of hours (0-23): ")
+		var inputStr string
+		fmt.Scanln(&inputStr)
+		hours, err := strconv.ParseInt(inputStr, 10, 0)
+		if err != nil {
+			fmt.Println("Enter an actual integer")
+		} else if hours < 0 || hours > 23 {
+			fmt.Println("Enter a number between 0 and 23")
+		} else {
+			actualHours = int(hours)
+			break
+		}
+	}
+	var actualMinutes int
+	for {
+		fmt.Print("Enter the number of minutes (0-59): ")
+		var inputStr string
+		fmt.Scanln(&inputStr)
+		minutes, err := strconv.ParseInt(inputStr, 10, 0)
+		if err != nil {
+			fmt.Println("Enter an actual integer")
+		} else if minutes < 0 || minutes > 59 {
+			fmt.Println("Enter a number between 0 and 59")
+		} else {
+			actualMinutes = int(minutes)
+			break
+		}
+	}
+	var actualSeconds int
+	for {
+		fmt.Print("Enter the number of seconds (0-59): ")
+		var inputStr string
+		fmt.Scanln(&inputStr)
+		seconds, err := strconv.ParseInt(inputStr, 10, 0)
+		if err != nil {
+			fmt.Println("Enter an actual integer")
+		} else if seconds < 0 || seconds > 59 {
+			fmt.Println("Enter a number between 0 and 59")
+		} else {
+			actualSeconds = int(seconds)
+			break
+		}
+	}
 
+	// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
+	now := time.Now()
+	day := now.Day()
+	month := now.Month()
+	year := now.Year()
+	currLocation := now.Location()
+	recurrentDateObj := time.Date(year, month, day, actualHours, actualMinutes, actualSeconds, 0, currLocation)
+	unixTimestamp := recurrentDateObj.Unix()
+	if now.Unix() > unixTimestamp {
+		unixTimestamp = addDayToTime(unixTimestamp)
+	}
 
-    // Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
-    now := time.Now()
-    day := now.Day()
-    month := now.Month()
-    year := now.Year()
-    currLocation := now.Location()
-    recurrentDateObj := time.Date(year, month, day, actualHours, actualMinutes, actualSeconds, 0, currLocation)
-    unixTimestamp := recurrentDateObj.Unix()
-    if now.Unix() > unixTimestamp {
-        unixTimestamp = addDayToTime(unixTimestamp)
-    }
-
-    return unixTimestamp
+	return unixTimestamp
 }
