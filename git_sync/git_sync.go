@@ -196,16 +196,16 @@ func AutomaticGitSync(checkTimeAccurateInterval time.Duration, retryGitSyncInter
                     syncInfo := value.(*SyncInfo)
                     
                     // Go until we find a time we aren't skipping
-                    foundTimeToSkip := false
+                    foundTimeToSkip := true
                     for (*syncInfo).SkipOccurence == true {
                         ok = queueItr.Next()
                         // If this branch is entered then we must have hit the last time
                         if !ok {
                             fmt.Println("Every time is being skipped")
+                            foundTimeToSkip = false
                         } else {
                             value = queueItr.Value()
                             syncInfo = value.(*SyncInfo)
-                            foundTimeToSkip = true
                         }
                     }
 
