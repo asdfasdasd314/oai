@@ -9,7 +9,7 @@ import (
 
 // We can do a DFS across the files/folders, looking through each item at each level and if it's a file
 // look through the contents for checkboxes that have been filled, otherwise rerun this code in the folder at a lower level
-func cleanCompletedTasks(folderPath string) int {
+func CleanCompletedTasks(folderPath string) int {
 	items, err := os.ReadDir(folderPath)
 	if err != nil {
 		panic(err)
@@ -21,7 +21,7 @@ func cleanCompletedTasks(folderPath string) int {
 		itemPath := folderPath + "/" + item.Name()
 
 		if item.IsDir() {
-			totalTasksCleared += cleanCompletedTasks(itemPath)
+			totalTasksCleared += CleanCompletedTasks(itemPath)
 		} else if item.Name()[len(item.Name())-3:len(item.Name())] == ".md" {
 			tasksCleared := cleanFile(itemPath)
 			totalTasksCleared += tasksCleared
