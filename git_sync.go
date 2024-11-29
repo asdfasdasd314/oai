@@ -1,4 +1,4 @@
-package git_sync
+package main
 
 import (
 	"fmt"
@@ -9,19 +9,17 @@ import (
 
 	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/gen2brain/beeep"
-
-    "obsidianautomation/cli"
 )
 
 // Represents all the necessary sync info for a time to sync on
 type SyncInfo struct {
-    SyncTime cli.UniqueDailyTime
+    SyncTime UniqueDailyTime
 	DaysBetweenSync   int
 	DaysSinceLastSync int
     SkipOccurence bool
 }
 
-func NewSyncInfo(recurrentSync cli.UniqueDailyTime, daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
+func NewSyncInfo(recurrentSync UniqueDailyTime, daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
     return &SyncInfo{SyncTime: recurrentSync, DaysBetweenSync: daysBetweenSync, DaysSinceLastSync: daysSinceLastSync, SkipOccurence: false}
 }
 
@@ -36,7 +34,7 @@ func (si *SyncInfo) GetSyncTimestamp() int64 {
     unixTimestamp := time.Date(year, month, day, si.SyncTime.Hours, si.SyncTime.Minutes, si.SyncTime.Seconds, 0, location).Unix()
 
     if (unixTimestamp < time.Now().Unix()) {
-        unixTimestamp = time_util.AddDayToTime(unixTimestamp)
+        unixTimestamp = AddDayToTime(unixTimestamp)
     }
 
     // Adjust timestamp for the difference in days
@@ -141,7 +139,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
                             if (*syncInfo).SkipOccurence == true {
                                 (*syncInfo).SkipOccurence = false
                                 queue.Remove(firstTimestamp)
-                                newTimestamp := time_util.AddDayToTime(firstTimestamp)
+                                newTimestamp := AddDayToTime(firstTimestamp)
                                 queue.Put(newTimestamp, syncInfo)
                             } else {
 							    break
@@ -149,7 +147,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 						} else {
                             // Otherwise we need to bump up the timestamp
                             queue.Remove(firstTimestamp)
-                            newTimestamp := time_util.AddDayToTime(firstTimestamp)
+                            newTimestamp := AddDayToTime(firstTimestamp)
                             queue.Put(newTimestamp, syncInfo)
 						}
 					}
@@ -190,7 +188,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 
 				if time.Now().Unix() >= firstTimestamp {
 					queue.Remove(firstTimestamp)
-					newTimestamp := time_util.AddDayToTime(firstTimestamp)
+					newTimestamp := AddDayToTime(firstTimestamp)
 					queue.Put(newTimestamp, syncInfo)
 				} else {
 					break
@@ -351,7 +349,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 
 		// Mutable operations //
 		case "set-sync-time":
-            unixTimestamp, dailyTime := time_util.GetTimeFromUser()
+            unixTimestamp, dailyTime := GetTimeFromUser()
 
 			// Get the recurrence interval
 			var dayInterval int
@@ -381,7 +379,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 			<-canAccessQueue
 
 			// Get the time the user wants to remove
-			timestamp, _ := time_util.GetTimeFromUser()
+			timestamp, _ := GetTimeFromUser()
 
 			_, found := queue.Get(timestamp)
 
@@ -398,7 +396,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
         
         // Vault Mutating Operations //
         case "clean-completed-tasks":
-            tasksCleared := clean_completed_tasks.CleanCompletedTasks(".")
+            tasksCleared := CleanCompletedTasks(".")
             fmt.Println(strconv.FormatInt(int64(tasksCleared), 10) + " tasks cleared throughout vault")
         }
 	}

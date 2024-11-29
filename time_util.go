@@ -1,11 +1,10 @@
-package git_sync
+package main
 
 import (
     "fmt"
     "strconv"
     "strings"
     "time"
-    "obsidianautomation/cli"
 )
 
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
@@ -18,7 +17,7 @@ func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
     return value
 }
 
-func GetTimeFromUser() (int64, *cli.UniqueDailyTime) {
+func GetTimeFromUser() (int64, *UniqueDailyTime) {
 	// Read the hours, minutes, and seconds from the user
 	var actualHours int
 	for {
@@ -78,7 +77,7 @@ func GetTimeFromUser() (int64, *cli.UniqueDailyTime) {
 		unixTimestamp = AddDayToTime(unixTimestamp)
 	}
 
-    return unixTimestamp, cli.NewUniqueDailyTime(actualSeconds, actualMinutes, actualHours)
+    return unixTimestamp, NewUniqueDailyTime(actualSeconds, actualMinutes, actualHours)
 }
 
 // Takes in the number of seconds since epoch and returns the corresponding time a day later

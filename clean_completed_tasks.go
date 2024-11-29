@@ -1,4 +1,4 @@
-package clean_completed_tasks
+package main
 
 import (
 	"bufio"

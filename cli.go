@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"fmt"
@@ -81,7 +81,7 @@ func GetUserInput() *UserInput {
 		// This one requires we prompt the user for the recurrent time they wish to set
 		commandEntered = SetSyncTime
 
-        time_util.GetTimeFromUser()
+        GetTimeFromUser()
 	case "erase-time":
 		// This one requires we prompt the user for the unique daily time they wish to set
 		commandEntered = EraseTime
