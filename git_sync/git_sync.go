@@ -10,29 +10,18 @@ import (
 	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/gen2brain/beeep"
 
-    "obsidianautomation/clean_completed_tasks"
+    "obsidianautomation/cli"
 )
-
-// This represents a recurrent time that happens everyday in military time
-type DailyTime struct {
-    Seconds int
-    Minutes int
-    Hours int
-}
 
 // Represents all the necessary sync info for a time to sync on
 type SyncInfo struct {
-    SyncTime DailyTime 
+    SyncTime cli.UniqueDailyTime
 	DaysBetweenSync   int
 	DaysSinceLastSync int
     SkipOccurence bool
 }
 
-func NewDailyTime(seconds int, minutes int, hours int) *DailyTime {
-    return &DailyTime{Seconds: seconds, Minutes: minutes, Hours: hours}
-}
-
-func NewSyncInfo(recurrentSync DailyTime, daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
+func NewSyncInfo(recurrentSync cli.UniqueDailyTime, daysBetweenSync int, daysSinceLastSync int) *SyncInfo {
     return &SyncInfo{SyncTime: recurrentSync, DaysBetweenSync: daysBetweenSync, DaysSinceLastSync: daysSinceLastSync, SkipOccurence: false}
 }
 
@@ -47,7 +36,7 @@ func (si *SyncInfo) GetSyncTimestamp() int64 {
     unixTimestamp := time.Date(year, month, day, si.SyncTime.Hours, si.SyncTime.Minutes, si.SyncTime.Seconds, 0, location).Unix()
 
     if (unixTimestamp < time.Now().Unix()) {
-        unixTimestamp = addDayToTime(unixTimestamp)
+        unixTimestamp = time_util.AddDayToTime(unixTimestamp)
     }
 
     // Adjust timestamp for the difference in days
@@ -152,7 +141,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
                             if (*syncInfo).SkipOccurence == true {
                                 (*syncInfo).SkipOccurence = false
                                 queue.Remove(firstTimestamp)
-                                newTimestamp := addDayToTime(firstTimestamp)
+                                newTimestamp := time_util.AddDayToTime(firstTimestamp)
                                 queue.Put(newTimestamp, syncInfo)
                             } else {
 							    break
@@ -160,7 +149,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 						} else {
                             // Otherwise we need to bump up the timestamp
                             queue.Remove(firstTimestamp)
-                            newTimestamp := addDayToTime(firstTimestamp)
+                            newTimestamp := time_util.AddDayToTime(firstTimestamp)
                             queue.Put(newTimestamp, syncInfo)
 						}
 					}
@@ -201,7 +190,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 
 				if time.Now().Unix() >= firstTimestamp {
 					queue.Remove(firstTimestamp)
-					newTimestamp := addDayToTime(firstTimestamp)
+					newTimestamp := time_util.AddDayToTime(firstTimestamp)
 					queue.Put(newTimestamp, syncInfo)
 				} else {
 					break
@@ -362,7 +351,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 
 		// Mutable operations //
 		case "set-sync-time":
-            unixTimestamp, dailyTime := getTimeFromUser()
+            unixTimestamp, dailyTime := time_util.GetTimeFromUser()
 
 			// Get the recurrence interval
 			var dayInterval int
@@ -392,7 +381,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
 			<-canAccessQueue
 
 			// Get the time the user wants to remove
-			timestamp, _ := getTimeFromUser()
+			timestamp, _ := time_util.GetTimeFromUser()
 
 			_, found := queue.Get(timestamp)
 
@@ -452,62 +441,6 @@ func notifySuccess() {
 	}
 }
 
-// Takes the hours, minutes, and seconds of a military time that happens every day and maps it to the next closest occurence of that time
-// For example, if it were 6 PM on a certain day and 15 hours, 30 minutes, 30 seconds was given, then 3:30:30 PM on the next day would be returned
-func mapRecurrentTimeToTimestamp(hours int, minutes int, seconds int) int64 {
-	now := time.Now()
-	currHours := now.Hour()
-	currMinutes := now.Minute()
-	currSeconds := now.Second()
-
-	currTotalSeconds := currHours*60*60 + currMinutes*60 + currSeconds
-	recurrentTimeTotalSeconds := hours*60*60 + minutes*60 + seconds
-
-	currYear, currMonth, currDay := now.Date()
-	currLocation := now.Location()
-
-	recurrentTime := time.Date(currYear, currMonth, currDay, hours, minutes, seconds, 0, currLocation)
-	unixTime := recurrentTime.Unix()
-
-	if currTotalSeconds > recurrentTimeTotalSeconds { // Put the recurrent timestamp on the next day
-		return unixTime
-	} else { // Put the recurrent timestamp on the current day
-		return addDayToTime(unixTime)
-	}
-}
-
-// Inserts a new timestamp into the existing timestamps
-func findInsertionIndex(newTimestamp int64, existingTimestamps []int64) int {
-	if len(existingTimestamps) == 0 || newTimestamp < existingTimestamps[0] {
-		return 0
-	}
-
-	if newTimestamp > existingTimestamps[len(existingTimestamps)-1] {
-		return len(existingTimestamps)
-	}
-
-	// Do the binary search
-	left := 0
-	right := len(existingTimestamps) - 1
-	for left < right {
-		middle := (right + left) / 2
-		if right-left == 1 {
-			if newTimestamp > existingTimestamps[left] {
-				return right
-			} else {
-				return left
-			}
-		}
-		if newTimestamp < existingTimestamps[middle] {
-			left = middle
-		} else {
-			right = middle
-		}
-	}
-
-	return right
-}
-
 func formatTime(timeObj time.Time) string {
 	return string(timeObj.Format(time.UnixDate))
 }
@@ -557,72 +490,4 @@ func getTimeUntilSync(nextSyncTimestamp int64) string {
 func isGithubAccessible() bool {
 	_, err := http.Get("https://www.github.com")
 	return err == nil
-}
-
-// Takes in the number of seconds since epoch and returns the corresponding time a day later
-func addDayToTime(unixTimestamp int64) int64 {
-	return unixTimestamp + 24*60*60
-}
-
-func getTimeFromUser() (int64, *DailyTime) {
-	// Read the hours, minutes, and seconds from the user
-	var actualHours int
-	for {
-		fmt.Print("Enter the number of hours (0-23): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		hours, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if hours < 0 || hours > 23 {
-			fmt.Println("Enter a number between 0 and 23")
-		} else {
-			actualHours = int(hours)
-			break
-		}
-	}
-	var actualMinutes int
-	for {
-		fmt.Print("Enter the number of minutes (0-59): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		minutes, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if minutes < 0 || minutes > 59 {
-			fmt.Println("Enter a number between 0 and 59")
-		} else {
-			actualMinutes = int(minutes)
-			break
-		}
-	}
-	var actualSeconds int
-	for {
-		fmt.Print("Enter the number of seconds (0-59): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		seconds, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if seconds < 0 || seconds > 59 {
-			fmt.Println("Enter a number between 0 and 59")
-		} else {
-			actualSeconds = int(seconds)
-			break
-		}
-	}
-
-	// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
-	now := time.Now()
-	day := now.Day()
-	month := now.Month()
-	year := now.Year()
-	currLocation := now.Location()
-	recurrentDateObj := time.Date(year, month, day, actualHours, actualMinutes, actualSeconds, 0, currLocation)
-	unixTimestamp := recurrentDateObj.Unix()
-	if now.Unix() > unixTimestamp {
-		unixTimestamp = addDayToTime(unixTimestamp)
-	}
-
-	return unixTimestamp, NewDailyTime(actualSeconds, actualMinutes, actualHours)
 }
