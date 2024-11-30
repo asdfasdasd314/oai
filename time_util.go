@@ -17,7 +17,7 @@ func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
 		var inputStr string
 		fmt.Scanln(&inputStr)
 		possiblyValue, err := strconv.ParseInt(inputStr, 10, 0)
-		if int(possiblyValue) != possiblyValue {
+		if int64(int(possiblyValue)) != possiblyValue {
 			fmt.Println("Number could not fit into int size (32 bits on 32 bit machines and vice versa)")
 		} else if err != nil {
 			fmt.Println("Enter an actual integer")
