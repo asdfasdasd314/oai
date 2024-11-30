@@ -8,8 +8,8 @@ import (
 )
 
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
+// Will always return an int, not int32 or int64, int. There is a check done to ensure it is this specific type (of course the size could change depending on each machinr)
 func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
-    panic("TODO")
     var value int
     name = strings.ToLower(name)
     for {
@@ -17,7 +17,9 @@ func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
 		var inputStr string
 		fmt.Scanln(&inputStr)
 		possiblyValue, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
+		if int(possiblyValue) != possiblyValue {
+			fmt.Println("Number could not fit into int size (32 bits on 32 bit machines and vice versa)")
+		} else if err != nil {
 			fmt.Println("Enter an actual integer")
 		} else if int(possiblyValue) < lowerBound || int(possiblyValue) > upperBound { 
 			fmt.Println("Enter a number between 0 and 23")
@@ -31,51 +33,9 @@ func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
 
 func GetTimeFromUser() (int64, *UniqueDailyTime) {
 	// Read the hours, minutes, and seconds from the user
-	var actualHours int
-	for {
-		fmt.Print("Enter the number of hours (0-23): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		hours, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if hours < 0 || hours > 23 {
-			fmt.Println("Enter a number between 0 and 23")
-		} else {
-			actualHours = int(hours)
-			break
-		}
-	}
-	var actualMinutes int
-	for {
-		fmt.Print("Enter the number of minutes (0-59): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		minutes, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if minutes < 0 || minutes > 59 {
-			fmt.Println("Enter a number between 0 and 59")
-		} else {
-			actualMinutes = int(minutes)
-			break
-		}
-	}
-	var actualSeconds int
-	for {
-		fmt.Print("Enter the number of seconds (0-59): ")
-		var inputStr string
-		fmt.Scanln(&inputStr)
-		seconds, err := strconv.ParseInt(inputStr, 10, 0)
-		if err != nil {
-			fmt.Println("Enter an actual integer")
-		} else if seconds < 0 || seconds > 59 {
-			fmt.Println("Enter a number between 0 and 59")
-		} else {
-			actualSeconds = int(seconds)
-			break
-		}
-	}
+	hours := getAmountOfTimeFromUser("hours", 0, 24)
+	minutes := getAmountOfTimeFromUser("minutes", 0, 60)
+	seconds := getAmountOfTimeFromUser("seconds", 0, 60)
 
 	// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
 	now := time.Now()
@@ -83,13 +43,13 @@ func GetTimeFromUser() (int64, *UniqueDailyTime) {
 	month := now.Month()
 	year := now.Year()
 	currLocation := now.Location()
-	recurrentDateObj := time.Date(year, month, day, actualHours, actualMinutes, actualSeconds, 0, currLocation)
+	recurrentDateObj := time.Date(year, month, day, hours, minutes, seconds, 0, currLocation)
 	unixTimestamp := recurrentDateObj.Unix()
 	if now.Unix() > unixTimestamp {
 		unixTimestamp = AddDayToTime(unixTimestamp)
 	}
 
-    return unixTimestamp, NewUniqueDailyTime(actualSeconds, actualMinutes, actualHours)
+    return unixTimestamp, NewUniqueDailyTime(seconds, minutes, hours)
 }
 
 // Takes in the number of seconds since epoch and returns the corresponding time a day later
