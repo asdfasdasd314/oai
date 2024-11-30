@@ -9,10 +9,22 @@ import (
 
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
 func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
+    panic("TODO")
     var value int
     name = strings.ToLower(name)
     for {
         fmt.Printf("Enter the number of %s (%d-%d): ", name, lowerBound, upperBound - 1); 
+		var inputStr string
+		fmt.Scanln(&inputStr)
+		possiblyValue, err := strconv.ParseInt(inputStr, 10, 0)
+		if err != nil {
+			fmt.Println("Enter an actual integer")
+		} else if int(possiblyValue) < lowerBound || int(possiblyValue) > upperBound { 
+			fmt.Println("Enter a number between 0 and 23")
+		} else {
+			value= int(possiblyValue)
+			break
+        }	
     }
     return value
 }
