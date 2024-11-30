@@ -4,6 +4,12 @@ import (
     "fmt"
 )
 
+type AppState struct {
+    RetryGithubConnectionInterval int // This is in seconds
+    VerifyAccurateTimingInterval int // This is also measured in seconds
+    SyncTimes 
+}
+
 func printHelpCommands() {
     fmt.Println("Meta Commands")
     fmt.Println("   help: Lists commands that do stuff")
