@@ -7,9 +7,28 @@ import (
     "time"
 )
 
+type UniqueDailyTime struct {
+    Hours int
+    Minutes int
+    Seconds int
+}
+
+type RecurrentTime struct {
+    DailyTime UniqueDailyTime
+    RecurrentInterval int // The number of days between the sync for the given unique time
+}
+
+func NewUniqueDailyTime(hours int, minutes int, seconds int) *UniqueDailyTime {
+    return &UniqueDailyTime{Hours: hours, Minutes: minutes, Seconds: seconds}
+}
+
+func NewRecurrentTime(dailyTime UniqueDailyTime, recurrentInterval int) *RecurrentTime {
+    return &RecurrentTime{DailyTime: dailyTime, RecurrentInterval: recurrentInterval}
+}
+
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
 // Will always return an int, not int32 or int64, int. There is a check done to ensure it is this specific type (of course the size could change depending on each machinr)
-func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
+func GetAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
     var value int
     name = strings.ToLower(name)
     for {
@@ -33,9 +52,9 @@ func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
 
 func GetTimeFromUser() (int64, *UniqueDailyTime) {
 	// Read the hours, minutes, and seconds from the user
-	hours := getAmountOfTimeFromUser("hours", 0, 24)
-	minutes := getAmountOfTimeFromUser("minutes", 0, 60)
-	seconds := getAmountOfTimeFromUser("seconds", 0, 60)
+	hours := GetAmountOfTimeFromUser("hours", 0, 24)
+	minutes := GetAmountOfTimeFromUser("minutes", 0, 60)
+	seconds := GetAmountOfTimeFromUser("seconds", 0, 60)
 
 	// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
 	now := time.Now()

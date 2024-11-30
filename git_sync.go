@@ -49,32 +49,7 @@ func (si *SyncInfo) GetSyncTimestamp() int64 {
     return unixTimestamp
 }
 
-func printHelpCommands() {
-    fmt.Println("Meta Commands")
-    fmt.Println("   help: Lists commands that do stuff")
-    fmt.Println("   exit: Exits the program safely without potentially being in the middle of a syncing command")
-    fmt.Println()
 
-    fmt.Println("Syncing")
-    fmt.Println("   sync: Syncs with GitHub")
-    fmt.Println("   skip-sync: Skips the next sync that would happen")
-    fmt.Println()
-
-    fmt.Println("Querying Data")
-    fmt.Println("   next-sync-time: Gets the next time GitHub will automatically sync")
-    fmt.Println("   time-until-sync: Calculates the time until the next sync in days, hours, minutes, and seconds")
-    fmt.Println("   list-recurrent-times: Lists all the recurrent times GitHub is synced")
-    fmt.Println()
-
-    fmt.Println("Mutating Internal Data")
-    fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
-    fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
-    fmt.Println()
-
-    fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOU'RE ACTUAL NOTES**)")
-    fmt.Println("   clean-completed-tasks: Clears completed tasks throughout the entire vault using a recursive function")
-    fmt.Println()
-}
 
 func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGitSyncInterval time.Duration) {
 	// By default either one can exit
@@ -396,7 +371,7 @@ func ObsidianAutomationService(checkTimeAccurateInterval time.Duration, retryGit
         
         // Vault Mutating Operations //
         case "clean-completed-tasks":
-            tasksCleared := CleanCompletedTasks(".")
+            tasksCleared := ClearCompletedTasks(".")
             fmt.Println(strconv.FormatInt(int64(tasksCleared), 10) + " tasks cleared throughout vault")
         }
 	}
