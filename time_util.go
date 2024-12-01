@@ -28,7 +28,7 @@ func NewRecurrentTime(dailyTime UniqueDailyTime, recurrentInterval int) *Recurre
 
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
 // Will always return an int, not int32 or int64, int. There is a check done to ensure it is this specific type (of course the size could change depending on each machinr)
-func GetAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
+func getAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
     var value int
     name = strings.ToLower(name)
     for {
@@ -52,9 +52,9 @@ func GetAmountOfTimeFromUser(name string, lowerBound int, upperBound int) int {
 
 func GetTimeFromUser() (int64, *UniqueDailyTime) {
 	// Read the hours, minutes, and seconds from the user
-	hours := GetAmountOfTimeFromUser("hours", 0, 24)
-	minutes := GetAmountOfTimeFromUser("minutes", 0, 60)
-	seconds := GetAmountOfTimeFromUser("seconds", 0, 60)
+	hours := getAmountOfTimeFromUser("hours", 0, 24)
+	minutes := getAmountOfTimeFromUser("minutes", 0, 60)
+	seconds := getAmountOfTimeFromUser("seconds", 0, 60)
 
 	// Using these hours, minutes, and seconds, we need to calculate what would be the timestamp
 	now := time.Now()
