@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Launch Program in External Terminal",
+        "type": "go",
+        "request": "launch",
+        "mode": "debug",
+        "program": "${workspaceFolder}",
+        "args": ["debug"], // Add command-line arguments if needed
+        "env": {}, // Add environment variables if needed
+        "buildFlags": "",
+        "console": "externalTerminal" // Use an external terminal
+      }
+    ]
+  }
+  
