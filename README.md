@@ -14,6 +14,8 @@ The project is written in Go, so go to https://go.dev/ and install language if y
 
 I'm not too good with how the Go dependency management works, but probably run `go mod tidy` and then `go build`
 
+Once it's built, place the binary in the root of an Obsidian vault (really you could use this program with any markdown note taking system, but I use Obsidian!!!) and run the binary.
+
 ### I love Obsidian!!!
 
 I would encourage anyone that uses Obsidian to look into this code! I think everyone can benefit from the functionality it has even at this primitive stage.
