@@ -80,9 +80,7 @@ func cleanFile(filePath string) int {
 
 	if removedLines > 0 {
 		fmt.Printf("Cleared %d tasks in %s\n", removedLines, filePath)
-	} else {
-        fmt.Println("Could not find any completed tasks")
-    }
+	}
 
 	writer.Flush()
 
