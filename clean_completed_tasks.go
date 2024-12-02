@@ -29,11 +29,7 @@ func ClearCompletedTasks(folderPath string) int {
 	}
 
     if totalTasksCleared == 0 {
-<<<<<<< HEAD
         fmt.Println("Couldn't find any completed tasks")
-=======
-        fmt.Println("No tasks to clear") 
->>>>>>> main
     }
 
 	return totalTasksCleared
@@ -84,7 +80,9 @@ func cleanFile(filePath string) int {
 
 	if removedLines > 0 {
 		fmt.Printf("Cleared %d tasks in %s\n", removedLines, filePath)
-	}
+	} else {
+        fmt.Println("Could not find any completed tasks")
+    }
 
 	writer.Flush()
 
