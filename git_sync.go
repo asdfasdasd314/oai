@@ -49,10 +49,7 @@ func (si *SyncTime) GetSyncTimestamp() int64 {
 }
 
 // TODO: This code is too messy
-func AutomaticSync(appState *AppState) {
-    // We have to check if we're in debug mode at some point, so why not do it here?
-    inDebug := checkInDebugMode()
-
+func AutomaticSync(appState *AppState, inDebugMode bool) {
     // There could theoretically be an issue in that the user may exit while the sync is happening
     // We don't want that to happen, so here we can use channels to pass messages about the completion status of each goroutine
     for {
@@ -75,13 +72,11 @@ func AutomaticSync(appState *AppState) {
 
                 // We've met the condition
                 if time.Now().Unix() >= firstTimestamp {
-                    queueItr := (*appState).SyncTimes.Iterator()
-
-                    queueItr.First() // Move the iterator to the first element
                     value := queueItr.Value()
                     syncTime := value.(*SyncTime)
 
-                    (*syncTime).DaysSinceLastSync = ((*syncTime).DaysSinceLastSync + 1) % (*syncTime).DaysBetweenSync
+                    (*syncTime).DaysSinceLastSync++
+                    (*syncTime).DaysSinceLastSync %= (*syncTime).DaysBetweenSync
                     
                     // we know we've hit it
                     if (*syncTime).DaysSinceLastSync == 0 {
@@ -116,7 +111,7 @@ func AutomaticSync(appState *AppState) {
 
         // If we've gotten to this point we need to guarantee that we can run the git commands
         fmt.Println("Syncing data automatically...")
-        if !inDebug {
+        if !inDebugMode {
             runGitSyncCommands((*appState).RetryGithubConnectionInterval)
         } else {
             fmt.Println("In debug so not actually syncing with Github")

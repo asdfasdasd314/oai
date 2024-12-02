@@ -1,7 +1,6 @@
 package main
 
 import (
-    "os"
     "fmt"
     "time"
     "strconv"
@@ -19,15 +18,6 @@ var int64Comparator = func(a, b interface{}) int {
     default:
         return 0
     }
-}
-
-func checkInDebugMode() bool {
-    envVar := os.Getenv("DEBUG")
-    if envVar == "TRUE" {
-        return true
-    }
-
-    return false
 }
 
 // This holds all of the state necessary to run the app, including the time to retry or verify certain things in a separate goroutine and a queue of the times set up to sync
@@ -60,22 +50,22 @@ func printHelpCommands() {
 
     fmt.Println("Syncing")
     fmt.Println("   sync: Syncs with GitHub")
-    fmt.Println("   skip-sync: Skips the next sync that would happen")
+    fmt.Println("   skipsync: Skips the next sync that would happen")
     fmt.Println()
 
     fmt.Println("Querying Data")
-    fmt.Println("   next-sync-time: Gets the next time GitHub will automatically sync")
-    fmt.Println("   time-until-sync: Calculates the time until the next sync in days, hours, minutes, and seconds")
-    fmt.Println("   list-recurrent-times: Lists all the recurrent times GitHub is synced")
+    fmt.Println("   nextsynctime: Gets the next time GitHub will automatically sync")
+    fmt.Println("   timeuntilsync: Calculates the time until the next sync in days, hours, minutes, and seconds")
+    fmt.Println("   listsynctimes: Lists all the recurrent times GitHub is synced")
     fmt.Println()
 
     fmt.Println("Mutating Internal Data")
-    fmt.Println("   set-sync-time: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
-    fmt.Println("   erase-time: Removes a time for which GitHub was supposed to sync")
+    fmt.Println("   setsynctime: Sets a recurrent time at which the client will sync with GitHub given some recurring basis of days")
+    fmt.Println("   erasetime: Removes a time for which GitHub was supposed to sync")
     fmt.Println()
 
     fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOU'RE ACTUAL NOTES**)")
-    fmt.Println("   clean-completed-tasks: Clears completed tasks throughout the entire vault using a recursive function")
+    fmt.Println("   cleancompletedtasks: Clears completed tasks throughout the entire vault using a recursive function")
     fmt.Println()
 }
 
@@ -139,7 +129,7 @@ func getTimeUntilNextSync(syncTimes *treemap.Map) string {
 
 func printSyncTimes(syncTimes *treemap.Map) {
     timestamps := syncTimes.Keys()
-    syncInfos := syncTimes.Values()
+    values := syncTimes.Values()
 
     if len(timestamps) == 0 {
         fmt.Println("No sync times added yet")
@@ -147,15 +137,15 @@ func printSyncTimes(syncTimes *treemap.Map) {
     }
 
     for index := range timestamps {
-        syncTime := syncInfos[index].(*SyncTime)
+        syncTime := values[index].(*SyncTime)
 
-        formattedTime := formatTime(time.Unix(syncTime.GetSyncTimestamp(), 0))
+        formattedTime := formatTime(time.Unix((*syncTime).GetSyncTimestamp(), 0))
         fmt.Print(formattedTime)
         fmt.Print(" | Days Between Syncs: " + strconv.FormatInt(int64((*syncTime).DaysBetweenSync), 10))
         fmt.Print(" | Days Since Last Sync: " + strconv.FormatInt(int64((*syncTime).DaysSinceLastSync), 10))
 
         fmt.Print(" | ")
-        if syncTime.SkipOccurence == true {
+        if (*syncTime).SkipOccurence == true {
             fmt.Println("Skipped next occurence")
         } else {
             fmt.Println("Not skipping next occurence")
@@ -185,8 +175,8 @@ func getSyncTimeFromUser() *SyncTime {
 
 // This adds to the queue of times
 // Also this asks for the app state because it has to do a lot more business logic than just receiving something from the queue
-func setSyncTime(newTime SyncTime, appState *AppState) {
-    (*appState).SyncTimes.Put(newTime.GetSyncTimestamp(), newTime)
+func setSyncTime(newTime *SyncTime, appState *AppState) {
+    (*appState).SyncTimes.Put(newTime.GetSyncTimestamp(), newTime) // Add pointers to these sync times
     // At the start of the program there is nothing in the channel, so here we have to determine if we can tell the other goroutine that it can now do it's Syncing
     if len((*appState).CanAccessQueue) == 0 {
         (*appState).CanAccessQueue <- true
@@ -198,7 +188,7 @@ func setSyncTime(newTime SyncTime, appState *AppState) {
 func eraseSyncTime(timestampToRemove int64, appState *AppState) {
     // First check if there are even any times
     if ((*appState).SyncTimes.Size() == 0) {
-        fmt.Println("No times have been set to sync")
+        fmt.Println("No times have been set to sync, this should have been caught earlier")
     }
 
     // The automatic syncing is in another goroutine, and so we need to check that it's safe
@@ -208,31 +198,26 @@ func eraseSyncTime(timestampToRemove int64, appState *AppState) {
     _, found := (*appState).SyncTimes.Get(timestampToRemove)
 
     if !found {
-        fmt.Println("That time is not in use, cannot remomve it")
+        fmt.Println("That time is not in use, cannot remove it")
     } else {
         // Remove that thang
         (*appState).SyncTimes.Remove(timestampToRemove)
         fmt.Println("Successfully removed time")
     }
 
-    // At the end we can send back on the channel so the separate go routine can do it's thing if there are any elements left in the thing
-    if len((*appState).CanAccessQueue) != 0 {
-        (*appState).CanAccessQueue <- true
-    }
+    // Send back on the channel so it can be accessed
+    (*appState).CanAccessQueue <- true
 }
 
 // Runs all app logic to not clutter main file
-func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInterval time.Duration) {
+func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInterval time.Duration, inDebugMode bool) {
     // First initialize appstate
     appState := InitAppState(retryGithubConnectionInterval, verifyAccurateTimingInterval)
 
     // Load environment variables //
 
-    // Check if actual git sync commands should be ran
-    inDebug := checkInDebugMode()
-
     // Set automatic syncing to happen in a separate goroutine, but can still communicate with this main goroutine via some channels I have setup
-    go AutomaticSync(appState)
+    go AutomaticSync(appState, inDebugMode)
 
     // Run the blocking code that the user interacts with
     for {
@@ -244,10 +229,11 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
         case "help":
             printHelpCommands()
         case "exit":
-            break;
+            <-(*appState).CanExit // First check we can exit
+            return;
         case "sync":
             fmt.Println("Syncing with Github...")
-            if !inDebug {
+            if !inDebugMode {
                 runGitSyncCommands(retryGithubConnectionInterval)
             } else {
                 fmt.Println("In debug so not actually syncing with Github")
@@ -256,15 +242,21 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
         case "skipsync":
             skipNextSync((*appState).SyncTimes)
         case "nextsynctime":
-            getNextSyncTime((*appState).SyncTimes)
+            fmt.Println(getNextSyncTime((*appState).SyncTimes))
         case "timeuntilsync":
-            getTimeUntilNextSync((*appState).SyncTimes)
+            fmt.Println(getTimeUntilNextSync((*appState).SyncTimes))
         case "listsynctimes":
             printSyncTimes((*appState).SyncTimes)
         case "setsynctime":
             syncTime := getSyncTimeFromUser()
-            setSyncTime(*syncTime, appState)
+            setSyncTime(syncTime, appState)
         case "erasetime":
+            // First check if there are even any times
+            if ((*appState).SyncTimes.Size() == 0) {
+                fmt.Println("No times have been set to sync")
+                continue
+            }
+
             timestamp, _ := GetTimeFromUser()
             eraseSyncTime(timestamp, appState)
         case "clearcompletedtasks":

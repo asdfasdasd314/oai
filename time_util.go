@@ -13,17 +13,8 @@ type UniqueDailyTime struct {
     Seconds int
 }
 
-type RecurrentTime struct {
-    DailyTime UniqueDailyTime
-    RecurrentInterval int // The number of days between the sync for the given unique time
-}
-
 func NewUniqueDailyTime(hours int, minutes int, seconds int) *UniqueDailyTime {
     return &UniqueDailyTime{Hours: hours, Minutes: minutes, Seconds: seconds}
-}
-
-func NewRecurrentTime(dailyTime UniqueDailyTime, recurrentInterval int) *RecurrentTime {
-    return &RecurrentTime{DailyTime: dailyTime, RecurrentInterval: recurrentInterval}
 }
 
 // Gets an int from the user in the specified bounds (inclusive lower bound and exclusive upper bound)
@@ -68,7 +59,7 @@ func GetTimeFromUser() (int64, *UniqueDailyTime) {
 		unixTimestamp = AddDayToTime(unixTimestamp)
 	}
 
-    return unixTimestamp, NewUniqueDailyTime(seconds, minutes, hours)
+    return unixTimestamp, NewUniqueDailyTime(hours, minutes, seconds)
 }
 
 // Takes in the number of seconds since epoch and returns the corresponding time a day later
