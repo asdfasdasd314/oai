@@ -70,61 +70,81 @@ func printHelpCommands() {
 }
 
 func skipNextSync(syncTimes *treemap.Map) {
-	panic("TODO")
+    itr := syncTimes.Iterator()
+    ok := itr.First()
+    if !ok {
+        fmt.Println("No times added, so can't skip any")
+        return
+    }
+
+    syncTime, _ := getClosestSyncTime(syncTimes)
+    if (*syncTime).SkipOccurence {
+        fmt.Println("Already skipping that time")
+        return
+    }
+
+    fmt.Println("Skipping sync time at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
+    (*syncTime).SkipOccurence = true
+    syncTimes.Put(syncTime.GetCurrentDayTimestamp(), syncTime)
+    fmt.Println("New sync at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
 }
 
 // A helper function for the `getNextSyncTime` and `getTimeUntilNextsync` functions
 // Does an O(n) search through the `syncTimes` and returns the smallest timestamp at which a sync should occur
 // Returns a timestamp and a boolean to represent if a successful retrieval occured (theoretically this would only not work if if there was nothing in the tree at the start, so basically that's the meaning of the boolean)
 // The sync timestamp is measured in seocnds
-func getClosestSyncTimestamp(syncTimes *treemap.Map) (int64, bool) {
+func getClosestSyncTime(syncTimes *treemap.Map) (*SyncTime, bool) {
 	itr := syncTimes.Iterator()
 	ok := itr.First() // Move the iterator to the first element
 
 	if !ok {
-		return 0, false
+		return nil, false
 	}
 
 	// So what we have to do is an O(n) searc for the minimum
 	// This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
-	var closestSyncTime int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
+    
+	var closestSyncTimestamp int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
+    var closestSync *SyncTime; 
 
 	syncTime := itr.Value().(*SyncTime)
 	temp := syncTime.GetSyncTimestamp()
 
-	if temp < closestSyncTime {
-		closestSyncTime = temp
+	if temp < closestSyncTimestamp {
+		closestSyncTimestamp = temp
+        closestSync = syncTime
 	}
 
 	for itr.Next() {
 		syncTime = itr.Value().(*SyncTime)
 		temp = syncTime.GetSyncTimestamp()
-		if temp < closestSyncTime {
-			closestSyncTime = temp
+		if temp < closestSyncTimestamp {
+			closestSyncTimestamp = temp
+            closestSync = syncTime
 		}
 	}
 
-	return closestSyncTime, true
+	return closestSync, true
 }
 
 // Returns the next time a sync will occur formatted as a string
 func getNextSyncTime(syncTimes *treemap.Map) string {
-	closestSyncTime, ok := getClosestSyncTimestamp(syncTimes)
+	closestSyncTime, ok := getClosestSyncTime(syncTimes)
 	if !ok {
 		return "No sync times added yet"
 	}
 
-	return time.Unix(closestSyncTime, 0).Format(time.UnixDate)
+	return time.Unix(closestSyncTime.GetSyncTimestamp(), 0).Format(time.UnixDate)
 }
 
 // Returns the time until the next sync formatted as a string, or a string to signify that there were no times in the SyncTimes tree yet
 func getTimeUntilNextSync(syncTimes *treemap.Map) string {
-	closestSyncTime, ok := getClosestSyncTimestamp(syncTimes)
+	closestSyncTime, ok := getClosestSyncTime(syncTimes)
 	if !ok {
 		return "No sync times added yet"
 	}
 
-	return calculateTimeUntilSync(closestSyncTime)
+	return calculateTimeUntilSync(closestSyncTime.GetSyncTimestamp())
 }
 
 func printSyncTimes(syncTimes *treemap.Map) {
@@ -146,7 +166,7 @@ func printSyncTimes(syncTimes *treemap.Map) {
 
 		fmt.Print(" | ")
 		if (*syncTime).SkipOccurence {
-			fmt.Println("Skipped next occurence")
+			fmt.Println("Skipping next occurence")
 		} else {
 			fmt.Println("Not skipping next occurence")
 		}
@@ -220,6 +240,7 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 	go AutomaticSync(appState, inDebugMode)
 
 	// Run the blocking code that the user interacts with
+    printHelpCommands()
 	for {
 		var input string
 		fmt.Scanln(&input)
