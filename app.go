@@ -220,6 +220,7 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 	go AutomaticSync(appState, inDebugMode)
 
 	// Run the blocking code that the user interacts with
+    printHelpCommands()
 	for {
 		var input string
 		fmt.Scanln(&input)
