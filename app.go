@@ -65,7 +65,7 @@ func printHelpCommands() {
 	fmt.Println()
 
 	fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOU'RE ACTUAL NOTES**)")
-	fmt.Println("   cleancompletedtasks: Clears completed tasks throughout the entire vault using a recursive function")
+	fmt.Println("   clearcompletedtasks: Clears completed tasks throughout the entire vault using a recursive function")
 	fmt.Println()
 }
 
