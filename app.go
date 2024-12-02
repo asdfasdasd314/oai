@@ -64,7 +64,7 @@ func printHelpCommands() {
 	fmt.Println("   erasetime: Removes a time for which GitHub was supposed to sync")
 	fmt.Println()
 
-	fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOU'RE ACTUAL NOTES**)")
+	fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOUR ACTUAL NOTES**)")
 	fmt.Println("   clearcompletedtasks: Clears completed tasks throughout the entire vault using a recursive function")
 	fmt.Println()
 }
@@ -284,7 +284,7 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 			if !inDebugMode {
                 numTasksCompleted := ClearCompletedTasks(".")
                 if numTasksCompleted == 0 {
-                    fmt.Println("Could not find any completed tassk")
+                    fmt.Println("Could not find any completed tasks")
                 } else {
                     fmt.Printf("Cleared %d tasks\n", numTasksCompleted)
                 }
