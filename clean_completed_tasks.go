@@ -28,10 +28,6 @@ func ClearCompletedTasks(folderPath string) int {
 		}
 	}
 
-    if totalTasksCleared == 0 {
-        fmt.Println("Couldn't find any completed tasks")
-    }
-
 	return totalTasksCleared
 }
 

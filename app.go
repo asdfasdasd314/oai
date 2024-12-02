@@ -282,7 +282,12 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 			eraseSyncTime(timestamp, appState)
 		case "clearcompletedtasks":
 			if !inDebugMode {
-				ClearCompletedTasks(".")
+                numTasksCompleted := ClearCompletedTasks(".")
+                if numTasksCompleted == 0 {
+                    fmt.Println("Could not find any completed tassk")
+                } else {
+                    fmt.Printf("Cleared %d tasks\n", numTasksCompleted)
+                }
 			} else {
 				fmt.Println("Can't run this command in debug mode :(")
 			}
