@@ -28,6 +28,10 @@ func ClearCompletedTasks(folderPath string) int {
 		}
 	}
 
+    if totalTasksCleared == 0 {
+        fmt.Println("No tasks to clear") 
+    }
+
 	return totalTasksCleared
 }
 
