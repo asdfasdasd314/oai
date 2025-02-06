@@ -22,7 +22,7 @@ func ClearCompletedTasks(folderPath string) int {
 
 		if item.IsDir() {
 			totalTasksCleared += ClearCompletedTasks(itemPath)
-		} else if item.Name()[len(item.Name())-3:len(item.Name())] == ".md" {
+		} else if item.Name()[len(item.Name())-3:] == ".md" {
 			tasksCleared := cleanFile(itemPath)
 			totalTasksCleared += tasksCleared
 		}
