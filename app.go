@@ -43,7 +43,7 @@ func InitAppState(retryGithubConnectionInterval time.Duration, verifyAccurateTim
 }
 
 func printHelpCommands() {
-	fmt.Println("Meta Commands")
+	fmt.Println("General Commands")
 	fmt.Println("   help: Lists commands that do stuff")
 	fmt.Println("   exit: Exits the program safely without potentially being in the middle of a syncing command")
 	fmt.Println()
@@ -64,29 +64,30 @@ func printHelpCommands() {
 	fmt.Println("   erasetime: Removes a time for which GitHub was supposed to sync")
 	fmt.Println()
 
-	fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOUR ACTUAL NOTES**)")
+	fmt.Println("Note Mutating Functions (**BE CAREFUL AS THESE INTERACT WITH YOUR ACTUAL NOTES, I WOULD RECOMMEND BACKING UP YOUR VAULT BEFORE DOING THIS**)")
 	fmt.Println("   clearcompletedtasks: Clears completed tasks throughout the entire vault using a recursive function")
+    fmt.Println("   folderstotags: Turns a vault comprised of folders into a system of tags (allegedly this is easier for our brains to comprehend)")
 	fmt.Println()
 }
 
 func skipNextSync(syncTimes *treemap.Map) {
-    itr := syncTimes.Iterator()
-    ok := itr.First()
-    if !ok {
-        fmt.Println("No times added, so can't skip any")
-        return
-    }
+	itr := syncTimes.Iterator()
+	ok := itr.First()
+	if !ok {
+		fmt.Println("No times added, so can't skip any")
+		return
+	}
 
-    syncTime, _ := getClosestSyncTime(syncTimes)
-    if (*syncTime).SkipOccurence {
-        fmt.Println("Already skipping that time")
-        return
-    }
+	syncTime, _ := getClosestSyncTime(syncTimes)
+	if (*syncTime).SkipOccurence {
+		fmt.Println("Already skipping that time")
+		return
+	}
 
-    fmt.Println("Skipping sync time at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
-    (*syncTime).SkipOccurence = true
-    syncTimes.Put(syncTime.GetCurrentDayTimestamp(), syncTime)
-    fmt.Println("New sync at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
+	fmt.Println("Skipping sync time at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
+	(*syncTime).SkipOccurence = true
+	syncTimes.Put(syncTime.GetCurrentDayTimestamp(), syncTime)
+	fmt.Println("New sync at " + time.Unix(syncTime.GetSyncTimestamp(), 0).Format(time.UnixDate))
 }
 
 // A helper function for the `getNextSyncTime` and `getTimeUntilNextsync` functions
@@ -103,16 +104,16 @@ func getClosestSyncTime(syncTimes *treemap.Map) (*SyncTime, bool) {
 
 	// So what we have to do is an O(n) searc for the minimum
 	// This is the price for log(n) insertion and arbitrary retrieval and I 100% think that was the correct decision, because automatic syncing doesn't really grow in complexity
-    
+
 	var closestSyncTimestamp int64 = 9_223_372_036_854_775_807 // Maximum value for a 64 bit signed integer
-    var closestSync *SyncTime; 
+	var closestSync *SyncTime
 
 	syncTime := itr.Value().(*SyncTime)
 	temp := syncTime.GetSyncTimestamp()
 
 	if temp < closestSyncTimestamp {
 		closestSyncTimestamp = temp
-        closestSync = syncTime
+		closestSync = syncTime
 	}
 
 	for itr.Next() {
@@ -120,7 +121,7 @@ func getClosestSyncTime(syncTimes *treemap.Map) (*SyncTime, bool) {
 		temp = syncTime.GetSyncTimestamp()
 		if temp < closestSyncTimestamp {
 			closestSyncTimestamp = temp
-            closestSync = syncTime
+			closestSync = syncTime
 		}
 	}
 
@@ -240,7 +241,7 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 	go AutomaticSync(appState, inDebugMode)
 
 	// Run the blocking code that the user interacts with
-    printHelpCommands()
+	printHelpCommands()
 	for {
 		var input string
 		fmt.Scanln(&input)
@@ -281,16 +282,22 @@ func RunApp(retryGithubConnectionInterval time.Duration, verifyAccurateTimingInt
 			timestamp, _ := GetTimeFromUser()
 			eraseSyncTime(timestamp, appState)
 		case "clearcompletedtasks":
-			if !inDebugMode {
-                numTasksCompleted := ClearCompletedTasks(".")
-                if numTasksCompleted == 0 {
-                    fmt.Println("Could not find any completed tasks")
-                } else {
-                    fmt.Printf("Cleared %d tasks\n", numTasksCompleted)
-                }
-			} else {
+			if inDebugMode {
 				fmt.Println("Can't run this command in debug mode :(")
-			}
+                continue
+            }
+			numTasksCompleted := ClearCompletedTasks(".")
+            if numTasksCompleted == 0 {
+                fmt.Println("Could not find any completed tasks")
+            } else {
+                fmt.Printf("Cleared %d tasks\n", numTasksCompleted)
+            }
+        case "folderstotags":
+            if inDebugMode {
+                fmt.Println("Can't run this command in debug mode :(")
+                continue
+            }
+            FoldersToTags()
 		}
 	}
 }

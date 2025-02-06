@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	llq "github.com/emirpasic/gods/queues/linkedlistqueue"
 	"os"
 	"strconv"
@@ -20,7 +19,7 @@ type ItemEntry struct {
 }
 
 func newItemEntry(item os.DirEntry, path []string) *ItemEntry {
-    return &ItemEntry{item, path}
+	return &ItemEntry{item, path}
 }
 
 var names map[string]struct{} = make(map[string]struct{})
@@ -54,18 +53,13 @@ func FoldersToTags() {
 		}
 
 		entry := front.(ItemEntry)
-        fmt.Println("Dequeing")
-        fmt.Println(entry)
-
 		itemsToVisit.Dequeue()
 
 		if entry.Item.IsDir() {
 			items, err = os.ReadDir(strings.Join(entry.Path, "/"))
 			for _, subItem := range items {
-                fmt.Println("Enqueueing")
-                copiedPath := append([]string{}, entry.Path...)
-                copiedPath = append(copiedPath, subItem.Name())
-                fmt.Println(*newItemEntry(subItem, copiedPath))
+				copiedPath := append([]string{}, entry.Path...)
+				copiedPath = append(copiedPath, subItem.Name())
 				itemsToVisit.Enqueue(*newItemEntry(subItem, copiedPath))
 			}
 		} else {
@@ -99,8 +93,8 @@ func moveFile(filePath []string, newName string) {
 
 	var lines []string = []string{}
 	if len(splitPath) != 0 {
-        tag := strings.Join(splitPath, "/")
-        lines = append(lines, "#"+tag[:len(tag) - 3])
+		tag := strings.Join(splitPath, "/")
+		lines = append(lines, "#"+tag[:len(tag)-3])
 	}
 
 	for scanner.Scan() {
