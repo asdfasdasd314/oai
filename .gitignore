@@ -38,4 +38,8 @@ Thumbs.db
 
 # The executable name for this project #
 #######################################
-obsidianautomation
+oai
+
+build/bin
+node_modules
+frontend/dist

@@ -1,23 +1,36 @@
 package main
 
 import (
-    "os"
-    "fmt"
-    "time"
+	"embed"
+	"time"
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
+//go:embed all:frontend/dist
+var assets embed.FS
+
 func main() {
-	// Then we have command line args passed into the program
-	inDebugMode := false
-	if len(os.Args) > 1 {
-		for _, arg := range os.Args {
-			if arg == "debug" {
-				fmt.Println("Running in debug mode")
-				inDebugMode = true
-			}
-		}
+	// Create an instance of the app structure
+	app := NewApp(time.Second*10, time.Second*10, true)
+
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:  "oai",
+		Width:  1024,
+		Height: 768,
+		AssetServer: &assetserver.Options{
+			Assets: assets,
+		},
+		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		OnStartup:        app.startup,
+		Bind: []interface{}{
+			app,
+		},
+	})
+
+	if err != nil {
+		println("Error:", err.Error())
 	}
-	retryInterval := time.Duration(2 * time.Minute)
-	verifyInterval := time.Duration(1 * time.Second)
-	RunApp(retryInterval, verifyInterval, inDebugMode)
 }

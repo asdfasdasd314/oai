@@ -56,7 +56,11 @@ func FoldersToTags() {
 		itemsToVisit.Dequeue()
 
 		if entry.Item.IsDir() {
-			items, err = os.ReadDir(strings.Join(entry.Path, "/"))
+			items, err := os.ReadDir(strings.Join(entry.Path, "/"))
+			if err != nil {
+				panic(err)
+			}
+
 			for _, subItem := range items {
 				copiedPath := append([]string{}, entry.Path...)
 				copiedPath = append(copiedPath, subItem.Name())
