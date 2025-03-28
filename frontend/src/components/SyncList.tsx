@@ -21,22 +21,18 @@ interface SyncListProps {
 export default function SyncList({ initialTimes = [], onSync = async () => { } }: SyncListProps) {
     const title = "Sync Times";
 
-    const [times, setTimes] = useState<SyncTime[]>(initialTimes)
-    const [newDate, setNewDate] = useState<string>((new Date()).toISOString().split('T')[0])
-    const [newTime, setNewTime] = useState<string>((new Date()).toTimeString().slice(0, 5))
-    const [newLabel, setNewLabel] = useState("")
-    const [recurrenceInterval, setRecurrenceInterval] = useState(7) // Default to weekly
-    const [isLoading, setIsLoading] = useState(false)
-    const [message, setMessage] = useState<{ type: string; text: string } | null>(null)
-
-    useEffect(() => {
-        console.log(newDate, newTime);
-    }, [newDate, newTime]);
+    const [times, setTimes] = useState<SyncTime[]>(initialTimes);
+    const [newDate, setNewDate] = useState<string>((new Date()).toISOString().split('T')[0]);
+    const [newTime, setNewTime] = useState<string>((new Date()).toTimeString().slice(0, 5));
+    const [newLabel, setNewLabel] = useState("");
+    const [recurrenceInterval, setRecurrenceInterval] = useState(7); // Default to weekly
+    const [isLoading, setIsLoading] = useState(false);
+    const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
     // Show a message/toast
     const showMessage = (text: string, type: "success" | "error" = "success") => {
-        setMessage({ type, text })
-        setTimeout(() => setMessage(null), 3000)
+        setMessage({ type, text });
+        setTimeout(() => setMessage(null), 3000);
     }
 
     // Format date for display
@@ -52,7 +48,6 @@ export default function SyncList({ initialTimes = [], onSync = async () => { } }
 
     // Validate if the selected date and time is in the future
     const isValidDateTime = (date: string, time: string): boolean => {
-        console.log(date, time);
         if (!date || !time) return false;
         
         const selectedDateTime = new Date(`${date}T${time}`);
