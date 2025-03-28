@@ -8,29 +8,9 @@ interface TimePickerProps {
 }
 
 const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, className = '' }) => {
-    const [hours, setHours] = useState<string[]>([]);
-    const [minutes, setMinutes] = useState<string[]>([]);
-    const [selectedHour, setSelectedHour] = useState('00');
-    const [selectedMinute, setSelectedMinute] = useState('00');
+    const [hour, setHour] = useState('00');
+    const [minute, setMinute] = useState('00');
     const [isPM, setIsPM] = useState(false);
-    const hoursRef = useRef<HTMLDivElement>(null);
-    const minutesRef = useRef<HTMLDivElement>(null);
-
-    // Generate hours (01-12)
-    useEffect(() => {
-        const hoursList = Array.from({ length: 12 }, (_, i) => 
-            (i + 1).toString().padStart(2, '0')
-        );
-        setHours(hoursList);
-    }, []);
-
-    // Generate minutes (00-59)
-    useEffect(() => {
-        const minutesList = Array.from({ length: 60 }, (_, i) => 
-            i.toString().padStart(2, '0')
-        );
-        setMinutes(minutesList);
-    }, []);
 
     // Initialize selected values from props
     useEffect(() => {
@@ -38,18 +18,18 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
             const [hour, minute] = value.split(':');
             const hourNum = parseInt(hour);
             if (hourNum > 12) {
-                setSelectedHour((hourNum - 12).toString().padStart(2, '0'));
+                setHour((hourNum - 12).toString().padStart(2, '0'));
                 setIsPM(true);
             } else {
-                setSelectedHour(hourNum.toString().padStart(2, '0'));
+                setHour(hourNum.toString().padStart(2, '0'));
                 setIsPM(false);
             }
-            setSelectedMinute(minute);
+            setMinute(minute);
         }
     }, [value]);
 
     const handleHourChange = (hour: string) => {
-        setSelectedHour(hour);
+        setHour(hour);
         const hourNum = parseInt(hour);
         let finalHour: string;
         if (isPM) {
@@ -57,31 +37,31 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
         } else {
             finalHour = hourNum === 12 ? '00' : hour;
         }
-        onChange(`${finalHour}:${selectedMinute}`);
+        onChange(`${finalHour}:${minute}`);
     };
 
     const handleMinuteChange = (minute: string) => {
-        setSelectedMinute(minute);
-        const hourNum = parseInt(selectedHour);
+        setMinute(minute);
+        const hourNum = parseInt(hour);
         let finalHour: string;
         if (isPM) {
             finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
         } else {
-            finalHour = hourNum === 12 ? '00' : selectedHour;
+            finalHour = hourNum === 12 ? '00' : hour;
         }
         onChange(`${finalHour}:${minute}`);
     };
 
     const handleAMPMChange = (pm: boolean) => {
         setIsPM(pm);
-        const hourNum = parseInt(selectedHour);
+        const hourNum = parseInt(hour);
         let finalHour: string;
         if (pm) {
             finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
         } else {
             finalHour = hourNum === 12 ? '00' : hourNum.toString().padStart(2, '0');
         }
-        onChange(`${finalHour}:${selectedMinute}`);
+        onChange(`${finalHour}:${minute}`);
     };
 
     return (
@@ -90,7 +70,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
             <input
                 placeholder="hh"
                 type="number"
-                value={hours}
+                value={hour}
                 onChange={handleHourChange}
                  min="1"
                  max="12"
@@ -100,7 +80,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
             <input
                 placeholder="mm"
                 type="number"
-                value={minuges}
+                value={minute}
                 onChange={handleMinuteChange}
                  min="0"
                  max="59"
