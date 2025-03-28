@@ -84,83 +84,27 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
         onChange(`${finalHour}:${selectedMinute}`);
     };
 
-    const handleScroll = (ref: React.RefObject<HTMLDivElement>, type: 'hour' | 'minute') => {
-        if (ref.current) {
-            const container = ref.current;
-            const itemHeight = 24; // height of each item
-            const scrollPosition = container.scrollTop;
-            const selectedIndex = Math.round(scrollPosition / itemHeight);
-            
-            if (type === 'hour' && hours[selectedIndex]) {
-                handleHourChange(hours[selectedIndex]);
-            } else if (type === 'minute' && minutes[selectedIndex]) {
-                handleMinuteChange(minutes[selectedIndex]);
-            }
-        }
-    };
-
     return (
         <div className={`flex flex-col items-center ${className}`}>
-            <div className="flex overflow-hidden rounded-lg bg-white shadow-sm">
-                {/* Hours */}
-                <div 
-                    ref={hoursRef}
-                    className="h-24 w-12 overflow-y-auto scroll-smooth bg-gray-50 relative"
-                    style={{
-                        scrollSnapType: 'y mandatory',
-                        WebkitOverflowScrolling: 'touch'
-                    }}
-                    onScroll={() => handleScroll(hoursRef, 'hour')}
-                >
-                    <div className="py-12">
-                        {hours.map((hour) => (
-                            <div
-                                key={hour}
-                                data-value={hour}
-                                className={`h-6 flex items-center justify-center text-sm cursor-pointer transition-colors
-                                    ${selectedHour === hour 
-                                        ? 'bg-blue-100 rounded text-blue-600 font-medium' 
-                                        : 'text-gray-600 hover:text-gray-900'}`}
-                                onClick={() => handleHourChange(hour)}
-                            >
-                                {hour}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            {/* Hours */}
+            <input
+                placeholder="hh"
+                type="number"
+                value={hours}
+                onChange={handleHourChange}
+                 min="1"
+                 max="12"
+            />
 
-                {/* Separator */}
-                <div className="flex items-center px-1">
-                    <span className="text-gray-400">:</span>
-                </div>
-
-                {/* Minutes */}
-                <div 
-                    ref={minutesRef}
-                    className="h-24 w-12 overflow-y-auto scroll-smooth bg-gray-50 relative"
-                    style={{
-                        scrollSnapType: 'y mandatory',
-                        WebkitOverflowScrolling: 'touch'
-                    }}
-                    onScroll={() => handleScroll(minutesRef, 'minute')}
-                >
-                    <div className="py-12">
-                        {minutes.map((minute) => (
-                            <div
-                                key={minute}
-                                data-value={minute}
-                                className={`h-6 flex items-center justify-center text-sm cursor-pointer transition-colors
-                                    ${selectedMinute === minute 
-                                        ? 'bg-blue-100 rounded text-blue-600 font-medium' 
-                                        : 'text-gray-600 hover:text-gray-900'}`}
-                                onClick={() => handleMinuteChange(minute)}
-                            >
-                                {minute}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            {/* Minutes */}
+            <input
+                placeholder="mm"
+                type="number"
+                value={minuges}
+                onChange={handleMinuteChange}
+                 min="0"
+                 max="59"
+            />
 
             {/* AM/PM Toggle */}
             <div className="mt-2 flex rounded-lg overflow-hidden bg-gray-100">
