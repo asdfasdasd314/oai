@@ -42,26 +42,12 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
 
     const handleMinuteChange = (minute: string) => {
         setMinute(minute);
-        const hourNum = parseInt(hour);
-        let finalHour: string;
-        if (isPM) {
-            finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
-        } else {
-            finalHour = hourNum === 12 ? '00' : hour;
-        }
-        onChange(`${finalHour}:${minute}`);
+        onChange(`${hour}:${minute}`);
     };
 
     const handleAMPMChange = (pm: boolean) => {
         setIsPM(pm);
-        const hourNum = parseInt(hour);
-        let finalHour: string;
-        if (pm) {
-            finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
-        } else {
-            finalHour = hourNum === 12 ? '00' : hourNum.toString().padStart(2, '0');
-        }
-        onChange(`${finalHour}:${minute}`);
+        handleHourChange(hour); // onChange handled in this function
     };
 
     return (
