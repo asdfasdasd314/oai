@@ -51,21 +51,36 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
     const handleHourChange = (hour: string) => {
         setSelectedHour(hour);
         const hourNum = parseInt(hour);
-        const finalHour = isPM ? (hourNum + 12).toString().padStart(2, '0') : hour;
+        let finalHour: string;
+        if (isPM) {
+            finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
+        } else {
+            finalHour = hourNum === 12 ? '00' : hour;
+        }
         onChange(`${finalHour}:${selectedMinute}`);
     };
 
     const handleMinuteChange = (minute: string) => {
         setSelectedMinute(minute);
         const hourNum = parseInt(selectedHour);
-        const finalHour = isPM ? (hourNum + 12).toString().padStart(2, '0') : selectedHour;
+        let finalHour: string;
+        if (isPM) {
+            finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
+        } else {
+            finalHour = hourNum === 12 ? '00' : selectedHour;
+        }
         onChange(`${finalHour}:${minute}`);
     };
 
     const handleAMPMChange = (pm: boolean) => {
         setIsPM(pm);
         const hourNum = parseInt(selectedHour);
-        const finalHour = pm ? (hourNum + 12).toString().padStart(2, '0') : hourNum.toString().padStart(2, '0');
+        let finalHour: string;
+        if (pm) {
+            finalHour = hourNum === 12 ? '12' : (hourNum + 12).toString().padStart(2, '0');
+        } else {
+            finalHour = hourNum === 12 ? '00' : hourNum.toString().padStart(2, '0');
+        }
         onChange(`${finalHour}:${selectedMinute}`);
     };
 
@@ -174,4 +189,4 @@ const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, minTime, class
     );
 };
 
-export default TimePicker; 
+export default TimePicker;

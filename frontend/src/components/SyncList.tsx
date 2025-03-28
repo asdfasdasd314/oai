@@ -52,6 +52,7 @@ export default function SyncList({ initialTimes = [], onSync = async () => { } }
 
     // Validate if the selected date and time is in the future
     const isValidDateTime = (date: string, time: string): boolean => {
+        console.log(date, time);
         if (!date || !time) return false;
         
         const selectedDateTime = new Date(`${date}T${time}`);
